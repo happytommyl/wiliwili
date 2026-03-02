@@ -25,3 +25,6 @@
 [submodule "library/MemoryModule"]
 	path = library/MemoryModule
 	url = https://github.com/xfangfang/MemoryModule.git
+[submodule "argparse"]
+	path = library/argparse
+	url = https://github.com/p-ranav/argparse
