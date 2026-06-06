@@ -27,6 +27,7 @@
 #include "utils/shortcut_helper.hpp"
 #include "view/live_core.hpp"
 #include "view/subtitle_core.hpp"
+#include "view/video_snapshot_core.hpp"
 #include "view/video_progress_slider.hpp"
 #include "view/svg_image.hpp"
 #include "view/grid_dropdown.hpp"
@@ -38,11 +39,11 @@ enum ClickState { IDLE = 0, PRESS = 1, FAST_RELEASE = 3, FAST_PRESS = 4, CLICK_D
 
 static int getSeekRange(int current) {
     current = abs(current);
-    if (current < 60) return 5;
-    if (current < 300) return 10;
-    if (current < 600) return 20;
-    if (current < 1200) return 60;
-    return current / 15;
+    if (current <= 30) return 5;
+    if (current <= 60) return 15;
+    if (current <= 300) return 30;
+    if (current <= 1200) return 60;
+    return current / 20;
 }
 
 #define CHECK_OSD(shake)                                                              \
@@ -118,6 +119,10 @@ VideoView::VideoView() {
 
     // 切换弹幕显示
     auto danmakuFunc = [this](...) -> bool {
+        if (this->hintBox->getVisibility() == brls::Visibility::VISIBLE) {
+            APP_E->fire(VideoView::SWITCH_TO_LAST, nullptr);
+            return true;
+        }
         CHECK_OSD(true);
         this->toggleDanmaku();
         return true;
@@ -148,6 +153,7 @@ VideoView::VideoView() {
     osdSlider->getProgressSetEvent()->subscribe([this](float progress) {
         brls::Logger::verbose("Set progress: {}", progress);
         this->showOSD(true);
+        this->showThumbnailPreview = false;
         if (real_duration > 0) {
             // 当设置了视频时长数据
             mpvCore->seek((float)real_duration * progress);
@@ -159,6 +165,22 @@ VideoView::VideoView() {
     osdSlider->getProgressEvent()->subscribe([this](float progress) {
         this->showOSD(false);
         leftStatusLabel->setText(wiliwili::sec2Time(getRealDuration() * progress));
+        auto& snapshot             = VideoSnapshotCore::instance();
+        this->showThumbnailPreview = snapshot.isValid();
+        // 预加载当前位置需要的精灵图
+        if (snapshot.isValid()) {
+            snapshot.preloadForTime(getRealDuration() * progress);
+        }
+    });
+
+    osdSlider->getProgressCancelEvent()->subscribe([this]() {
+        this->showThumbnailPreview = false;
+        if (isTvControlMode) hideOSD();
+    });
+
+    osdSlider->setProgressUpdater([this](float offset) {
+        if (real_duration <= 0) return 0.2f;
+        return getSeekRange(offset * real_duration) / (float)real_duration * 8.0f;
     });
 
     /// 组件触摸事件
@@ -459,6 +481,20 @@ VideoView::VideoView() {
         return true;
     });
 
+    // TV模式下，全屏+OSD隐藏时，可以使用左右键直接调整进度
+    auto sliderFunc = [this](...) {
+        CHECK_OSD(true);
+        if (isTvControlMode && !isOSDShown() && isFullscreen()) {
+            this->showOSD(true);
+            this->is_osd_shown = true; // 直接标记为显示状态，避免在 onChildFocusGained 焦点又被转移
+            brls::Application::giveFocus(this->osdSlider);
+            this->osdSlider->setManuallyMode();
+        }
+        return false;
+    };
+    this->registerAction("", brls::ControllerButton::BUTTON_RIGHT, sliderFunc, true);
+    this->registerAction("", brls::ControllerButton::BUTTON_LEFT, sliderFunc, true);
+
     // 自定义的mpv事件
     customEventSubscribeID = APP_E->subscribe([this](const std::string& event, void* data) {
         if (event == VideoView::SET_TITLE) {
@@ -546,10 +582,18 @@ void VideoView::requestSeeking(int seek, int delay) {
     osdSlider->setProgress((float)progress);
     leftStatusLabel->setText(wiliwili::sec2Time(getRealDuration() * progress));
 
+    // 更新缩略图预览
+    auto& snapshot             = VideoSnapshotCore::instance();
+    this->showThumbnailPreview = snapshot.isValid();
+    if (snapshot.isValid()) {
+        snapshot.preloadForTime(getRealDuration() * (float)progress);
+    }
+
     // 取消之前的延迟触发
     brls::cancelDelay(seeking_iter);
     if (delay <= 0) {
         this->hideCenterHint();
+        this->showThumbnailPreview = false;
         seeking_range = 0;
         is_seeking    = false;
         if (seek == 0) return;
@@ -562,6 +606,7 @@ void VideoView::requestSeeking(int seek, int delay) {
         seeking_iter = brls::delay(delay, [ASYNC_TOKEN, seek]() {
             ASYNC_RELEASE
             this->hideCenterHint();
+            this->showThumbnailPreview = false;
             seeking_range = 0;
             is_seeking    = false;
             if (seek == 0) return;
@@ -690,6 +735,19 @@ void VideoView::draw(NVGcontext* vg, float x, float y, float width, float height
 
     // cache info
     osdCenterBox->frame(ctx);
+
+    // draw thumbnail preview (shown when dragging the progress slider)
+    if (showThumbnailPreview) {
+        const float previewProgress = osdSlider->getProgress();
+        VideoSnapshotCore::instance().draw(
+            vg,
+            x, y, width, height,
+            previewProgress * getRealDuration(),
+            200.0f,
+            osdSlider->getX() + osdSlider->getWidth() * previewProgress,
+            osdSlider->getY()
+        );
+    }
 
     // center hint
     osdCenterBox2->frame(ctx);
@@ -1224,6 +1282,13 @@ void VideoView::setFullScreen(bool fs) {
         const auto activity = new brls::Activity(container);
         brls::Application::pushActivity(activity, brls::TransitionAnimation::NONE);
         video->registerCommonActions(activity);
+#ifdef ALLOW_FULLSCREEN
+        // 应用内全屏时同步切换窗口全屏
+        if (WINDOW_FULLSCREEN_ON_APP_FULLSCREEN && !ProgramConfig::instance().getBoolOption(SettingItem::FULLSCREEN)) {
+            WINDOW_FULLSCREEN_TRIGGERED = true;
+            ProgramConfig::instance().setWindowFullscreen(true);
+        }
+#endif
     } else {
         ASYNC_RETAIN
         brls::sync([ASYNC_TOKEN]() {
@@ -1242,6 +1307,13 @@ void VideoView::setFullScreen(bool fs) {
             // 因此目前需要遍历全部的 activity 找到 BasePlayerActivity 或包含VideoView的Activity
             if (activityStack.size() <= 2) {
                 brls::Application::popActivity();
+#ifdef ALLOW_FULLSCREEN
+                // 应用内全屏退出时同步还原窗口全屏状态
+                if (WINDOW_FULLSCREEN_ON_APP_FULLSCREEN && WINDOW_FULLSCREEN_TRIGGERED) {
+                    WINDOW_FULLSCREEN_TRIGGERED = false;
+                    ProgramConfig::instance().setWindowFullscreen(false);
+                }
+#endif
                 return;
             }
 
@@ -1332,6 +1404,13 @@ void VideoView::setFullScreen(bool fs) {
 
             // Pop fullscreen videoView
             brls::Application::popActivity(brls::TransitionAnimation::NONE);
+#ifdef ALLOW_FULLSCREEN
+            // 应用内全屏退出时同步还原窗口全屏状态
+            if (WINDOW_FULLSCREEN_ON_APP_FULLSCREEN && WINDOW_FULLSCREEN_TRIGGERED) {
+                WINDOW_FULLSCREEN_TRIGGERED = false;
+                ProgramConfig::instance().setWindowFullscreen(false);
+            }
+#endif
         });
     }
 }
@@ -1544,6 +1623,9 @@ void VideoView::registerMpvEvent() {
                 // 重置进度条标记点
                 osdSlider->clearClipPoint();
                 real_duration = 0;
+                // 重置视频快照数据
+                VideoSnapshotCore::instance().reset();
+                showThumbnailPreview = false;
                 break;
             default:
                 break;
@@ -1629,6 +1711,11 @@ void VideoView::registerCommonActions(brls::Activity* activity) {
     activity->registerAction(
         ShortcutHelper::getDanmaku(), [this](...) -> bool {
             CHECK_OSD(true);
+            // 如果正在显示提示（提示历史播放进度），则不切换弹幕状态，将这种情况临时绑定成切换历史进度
+            if (this->hintBox->getVisibility() == brls::Visibility::VISIBLE) {
+                APP_E->fire(VideoView::SWITCH_TO_LAST, nullptr);
+                return true;
+            }
             this->toggleDanmaku();
             return true;
         });
@@ -1659,3 +1746,4 @@ void VideoView::registerCommonActions(brls::Activity* activity) {
         return true;
     });
 }
+

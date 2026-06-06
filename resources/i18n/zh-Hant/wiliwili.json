@@ -15,6 +15,7 @@
         "in_memory_cache": "解码緩存",
         "hwdec": "硬體解碼",
         "auto_play": "影片詳細頁直接播放",
+        "auto_fullscreen": "進入播放頁後自動全屏",
         "exit_fullscreen": "播放結束時自動退出全屏",
         "play_strategy": "播放方式",
         "auto_play_next_part": "自動播放分集",
@@ -28,7 +29,8 @@
         "audio_quality": "影像音質",
         "video_format": "影像格式",
         "dolby": "杜比全景聲",
-        "hi_res": "Hi-Res 無損"
+        "hi_res": "Hi-Res 無損",
+        "window_fullscreen_on_app_fullscreen": "應用內全屏時自動切換視窗全屏"
       },
       "image": {
         "header": "圖片設定",

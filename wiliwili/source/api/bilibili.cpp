@@ -19,9 +19,13 @@ std::string genRandomHex(int length) {
     return text;
 }
 
-std::string BilibiliClient::genRandomBuvid3() {
+std::string BilibiliClient::genRandomUuid() {
     return genRandomHex(8) + "-" + genRandomHex(4) + "-" + genRandomHex(4) + "-" + genRandomHex(4) + "-" +
            genRandomHex(17) + "infoc";
+}
+
+std::string BilibiliClient::genRandomBuvid3() {
+    return genRandomHex(32);
 }
 
 // set bilibili cookie and cookies callback
@@ -31,6 +35,8 @@ void BilibiliClient::init(Cookies& data, std::function<void(Cookies, std::string
     for (const auto& cookie : data) {
         HTTP::COOKIES.emplace_back({cookie.first, cookie.second});
     }
+    // Manually set cookie, because cpr's cookie algorithm does not conform to the rfc6265
+    HTTP::HEADERS["cookie"] = HTTP::getEncodedCookie(HTTP::COOKIES);
 }
 
 void BilibiliClient::setProxy(const std::string& httpProxy, const std::string& httpsProxy) {
@@ -40,7 +46,6 @@ void BilibiliClient::setProxy(const std::string& httpProxy, const std::string& h
 
 void BilibiliClient::setTlsVerify(bool value) {
     HTTP::VERIFY = cpr::VerifySsl{value};
-    HTTP::PROTOCOL = value ? "https:" : "http:";
 }
 
 void BilibiliClient::setHttpTimeout(int ms) {

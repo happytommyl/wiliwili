@@ -32,7 +32,7 @@ void BilibiliClient::get_recommend(int index, int num, int fresh_type, std::stri
         });
     }
 
-    HTTP::getResultAsync<RecommendVideoListResultWrapper>(
+    HTTP::getResultWithWbiAsync<RecommendVideoListResultWrapper>(
         Api::Recommend, parameters,
         [callback, index](RecommendVideoListResultWrapper wrapper) {
             wrapper.requestIndex = index;
@@ -149,7 +149,7 @@ void BilibiliClient::get_live_recommend(int parent_area_id, int area_id, int pag
 void BilibiliClient::get_live_recommend_second(int parent_area_id, int area_id, int page,
                                                const std::function<void(LiveSecondResultWrapper)>& callback,
                                                const ErrorCallback& error) {
-    HTTP::getResultAsync<LiveSecondResultWrapper>(
+    HTTP::getResultWithWbiAsync<LiveSecondResultWrapper>(
         Api::LiveFeedSecond,
         {
             {"parent_area_id", std::to_string(parent_area_id)},

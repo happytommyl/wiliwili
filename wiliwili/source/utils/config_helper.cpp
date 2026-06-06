@@ -24,6 +24,8 @@
 #include "utils/thread_helper.hpp"
 #include "utils/image_helper.hpp"
 #include "utils/config_helper.hpp"
+
+#include "pystring.h"
 #include "utils/crash_helper.hpp"
 #include "utils/vibration_helper.hpp"
 #include "utils/ban_list.hpp"
@@ -197,6 +199,8 @@ std::unordered_map<SettingItem, ProgramOption> ProgramConfig::SETTING_MAP = {
 #endif
     {SettingItem::PLAYER_HWDEC_CUSTOM, {"player_hwdec_custom", {}, {}, 0}},
     {SettingItem::PLAYER_EXIT_FULLSCREEN_ON_END, {"player_exit_fullscreen_on_end", {}, {}, 1}},
+    {SettingItem::PLAYER_WINDOW_FULLSCREEN_ON_APP_FULLSCREEN, {"player_window_fullscreen_on_app_fullscreen", {}, {}, 0}},
+    {SettingItem::PLAYER_AUTO_FULLSCREEN, {"player_auto_fullscreen", {}, {}, 0}},
     {SettingItem::PLAYER_OSD_TV_MODE, {"player_osd_tv_mode", {}, {}, 0}},
     {SettingItem::OPENCC_ON, {"opencc", {}, {}, 1}},
     {SettingItem::DANMAKU_ON, {"danmaku", {}, {}, 1}},
@@ -301,6 +305,7 @@ std::unordered_map<SettingItem, ProgramOption> ProgramConfig::SETTING_MAP = {
     /// Custom
     {SettingItem::UP_FILTER, {"up_filter", {}, {}, 0}},
     {SettingItem::LIVE_DANMAKU_FILTER_LEVEL, {"live_danmaku_filter_level", {}, {}, 0}},
+    {SettingItem::CUSTOM_THEME_COLOR, {"custom_theme_color", {}, {}, 0}},
 };
 
 ProgramConfig::ProgramConfig() = default;
@@ -332,7 +337,19 @@ void ProgramConfig::setCookie(const Cookie& data) {
     this->save();
 }
 
-Cookie ProgramConfig::getCookie() const { return this->cookie; }
+Cookie ProgramConfig::getCookie() {
+    // 生成虚假的 buvid3，在获取直播分区时需要此字段
+    // buvid3 不应以 infoc 结尾，否则会报错误码 352
+    if (!this->cookie.count("buvid3") || pystring::endswith(this->cookie["buvid3"], "infoc")) {
+        this->cookie["buvid3"] = wiliwili::getRandomHex(32, false);
+    }
+    // 生成虚假的 DedeUserID，在未登录时使用
+    // 默认用户ID (DedeUserID) 为0表示未登录，如果没有此字段老版本搜索api会报错，但目前没有这个问题，维持现状
+    if (!this->cookie.count("DedeUserID")) {
+        this->cookie["DedeUserID"] = "0";
+    }
+    return this->cookie;
+}
 
 void ProgramConfig::addHistory(const std::string& key) {
     if (key.empty()) return;
@@ -635,6 +652,10 @@ void ProgramConfig::load() {
 
     // 播放结束时自动退出全屏
     VideoView::EXIT_FULLSCREEN_ON_END = getBoolOption(SettingItem::PLAYER_EXIT_FULLSCREEN_ON_END);
+
+    // 应用内全屏时同步切换窗口全屏
+    VideoView::WINDOW_FULLSCREEN_ON_APP_FULLSCREEN =
+        getBoolOption(SettingItem::PLAYER_WINDOW_FULLSCREEN_ON_APP_FULLSCREEN);
 
     // 初始化播放器 OSD 自动隐藏时间
     VideoView::OSD_SHOW_TIME = getSettingItem(SettingItem::PLAYER_OSD_HIDE, 5000);
@@ -1265,4 +1286,10 @@ void ProgramConfig::toggleFullscreen() {
     VideoContext::FULLSCREEN = value;
     brls::Application::getPlatform()->getVideoContext()->fullScreen(value);
     GA("player_setting", {{"fullscreen", value ? "true" : "false"}});
+}
+
+void ProgramConfig::setWindowFullscreen(bool value) {
+    setSettingItem(SettingItem::FULLSCREEN, value, false);
+    VideoContext::FULLSCREEN = value;
+    brls::Application::getPlatform()->getVideoContext()->fullScreen(value);
 }

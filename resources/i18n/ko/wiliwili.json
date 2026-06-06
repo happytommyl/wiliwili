@@ -15,6 +15,7 @@
         "in_memory_cache": "메모리 캐시",
         "hwdec": "하드웨어 디코드",
         "auto_play": "비디오 세부 정보 페이지에서 자동 재생",
+        "auto_fullscreen": "플레이어 진입 시 자동 전체 화면",
         "exit_fullscreen": "재생 종료 시 전체 화면 종료",
         "play_strategy": "재생 방법",
         "auto_play_next_part": "자동으로 다음 동영상 재생",
@@ -26,7 +27,10 @@
         "format": "형식",
         "video_codec": "비디오 코덱",
         "audio_quality": "오디오 품질",
-        "video_format": "비디오 형식"
+        "video_format": "비디오 형식",
+        "window_fullscreen_on_app_fullscreen": "앱 내 전체 화면 시 창 전체 화면 자동 전환",
+        "dolby": "Dolby Atmos",
+        "hi_res": "Hi-Res"
       },
       "image": {
         "header": "이미지",
@@ -44,7 +48,9 @@
         "window": "윈도우",
         "bottom_bar": "하단바",
         "ui_style": "UI 스타일",
-        "tv_osd": "TV 스타일 OSD 제어"
+        "tv_osd": "TV 스타일 OSD 제어",
+        "live_sidebar_count": "라이브 사이드바 탄막 수",
+        "live_sidebar_hide": "사이드바 숨기기"
       },
       "others": {
         "header": "기타",
@@ -439,7 +445,11 @@
         "color": "색상",
         "advanced": "고급 설정",
         "level": "필터 수준",
-        "level_n": "수준 {}"
+        "level_n": "수준 {}",
+        "level_live": "탄막 필터 수준",
+        "level_live_none": "필터 없음 (UL0+)",
+        "level_live_n": "UL{} 이상",
+        "level_live_60": "UL60만"
       },
       "style": {
         "header": "탄막 스타일",

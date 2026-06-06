@@ -91,6 +91,9 @@
                             <brls:BooleanCell
                                     id="setting/video/auto_play"/>
 
+                            <brls:BooleanCell
+                                    id="setting/video/auto_fullscreen"/>
+
                         </brls:Box>
                     </brls:Box>
                 </brls:ScrollingFrame>
@@ -130,6 +133,9 @@
 
                             <brls:BooleanCell
                                     id="cell/fullscreen"/>
+
+                            <brls:BooleanCell
+                                    id="cell/windowFullscreen"/>
 
                             <SelectorCell
                                     id="cell/onTopMode"/>

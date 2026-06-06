@@ -49,6 +49,7 @@ enum class SettingItem {
     PLAYER_HWDEC,
     PLAYER_HWDEC_CUSTOM,
     PLAYER_EXIT_FULLSCREEN_ON_END,
+    PLAYER_WINDOW_FULLSCREEN_ON_APP_FULLSCREEN, // 应用内全屏时同步切换窗口全屏
     PLAYER_DEFAULT_SPEED,
     PLAYER_VOLUME,
     PLAYER_ASPECT,
@@ -123,6 +124,8 @@ enum class SettingItem {
     SHORTCUT_VIDEO_SPEEDUP, // 视频倍速快捷键
     SHORTCUT_VIDEO_OSD, // 切换OSD显示
     SHORTCUT_VIDEO_PAUSE, // 视频播放暂停快捷键
+    PLAYER_AUTO_FULLSCREEN, // 进入播放页后自动全屏
+    CUSTOM_THEME_COLOR,  // 自定义主题色 (十六进制 #RRGGBB，例如 #FF6699)
 };
 
 class APPVersion : public brls::Singleton<APPVersion> {
@@ -193,7 +196,7 @@ public:
     ProgramConfig(const ProgramConfig& config);
     void setProgramConfig(const ProgramConfig& conf);
     void setCookie(const Cookie& data);
-    Cookie getCookie() const;
+    Cookie getCookie();
     void addHistory(const std::string& key);
     std::vector<std::string> getHistoryList();
     void setHistory(const std::vector<std::string>& list);
@@ -283,13 +286,15 @@ public:
 
     void toggleFullscreen();
 
+    void setWindowFullscreen(bool value);
+
     /**
      * 检查是否需要置顶窗口
      */
     void checkOnTop();
 
     std::vector<CustomTheme> customThemes;
-    Cookie cookie = {{"DedeUserID", "0"}};
+    Cookie cookie = {};
     std::string refreshToken;
     nlohmann::json setting;
     std::string client;
@@ -329,4 +334,13 @@ public:
     static void initCustomView();
     static void initCustomTheme();
     static void initCustomStyle();
+
+    /// 返回用户自定义的主题色，格式为 "#RRGGBB"；未设置时返回空字符串。
+    static const std::string& getCustomThemeColorHex();
+
+    /// 判断颜色字符串是否为 Bilibili 官方默认大会员粉色 (#FB7299)。
+    static bool isBilibiliDefaultPink(const std::string& color);
+
+private:
+    static std::string customThemeColorHex;
 };

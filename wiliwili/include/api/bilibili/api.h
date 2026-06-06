@@ -98,6 +98,8 @@ const std::string VideoEpisodeRelation = _apiBase + "/pgc/season/episode/web/inf
 const std::string VideoDanmaku = _apiBase + "/x/v1/dm/list.so";
 /// 获取高能进度条
 const std::string VideoHighlight = _bvcBase + "/pbp/data";
+/// 获取视频快照（缩略图）
+const std::string VideoSnapshot = _apiBase + "/x/player/videoshot";
 /// 获取直播弹幕token
 const std::string LiveDanmakuInfo = _liveBase + "/xlive/web-room/v1/index/getDanmuInfo";
 /// 获取历史弹幕
@@ -119,7 +121,7 @@ const std::string LiveAreaList = _liveBase + "/xlive/app-interface/v2/index/getA
 /// ===
 
 /// 主页 推荐
-const std::string Recommend = _apiBase + "/x/web-interface/index/top/feed/rcmd";
+const std::string Recommend = _apiBase + "/x/web-interface/wbi/index/top/feed/rcmd";
 /// 主页 热门 热门综合
 const std::string HotsAll = _apiBase + "/x/web-interface/popular";
 /// 主页 热门 每周推荐列表
@@ -200,7 +202,7 @@ const std::string WatchLater = _apiBase + "/x/v2/history/toview/web";
 /// ===
 /// 搜索页API
 /// ===
-const std::string Search     = _apiBase + "/x/web-interface/search/type";
+const std::string Search     = _apiBase + "/x/web-interface/wbi/search/type";
 const std::string TVSuggest  = _apiBase + "/x/tv/suggest";
 const std::string SearchHots = _apiBase + "/x/web-interface/search/square";
 

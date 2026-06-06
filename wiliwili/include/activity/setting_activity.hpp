@@ -56,6 +56,7 @@ private:
     BRLS_BIND(brls::BooleanCell, btnQuality, "setting/video/quality");
     BRLS_BIND(brls::BooleanCell, btnHWDEC, "setting/video/hwdec");
     BRLS_BIND(brls::BooleanCell, btnAutoPlay, "setting/video/auto_play");
+    BRLS_BIND(brls::BooleanCell, btnAutoFullscreen, "setting/video/auto_fullscreen");
     BRLS_BIND(BiliSelectorCell, selectorInmemory, "setting/video/inmemory");
     BRLS_BIND(BiliSelectorCell, selectorFormat, "setting/video/format");
     BRLS_BIND(BiliSelectorCell, selectorCodec, "setting/video/codec");
@@ -67,6 +68,7 @@ private:
     BRLS_BIND(brls::BooleanCell, cellTvSearch, "cell/tvSearch");
     BRLS_BIND(brls::BooleanCell, cellTvOSD, "cell/tvOSD");
     BRLS_BIND(brls::BooleanCell, cellFullscreen, "cell/fullscreen");
+    BRLS_BIND(brls::BooleanCell, cellWindowFullscreen, "cell/windowFullscreen");
     BRLS_BIND(BiliSelectorCell, cellOnTopMode, "cell/onTopMode");
     BRLS_BIND(brls::BooleanCell, cellVibration, "cell/gamepadVibration");
     BRLS_BIND(brls::Label, labelAboutVersion, "setting/about/version");
