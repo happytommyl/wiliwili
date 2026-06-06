@@ -13,8 +13,8 @@
 
 #include "bilibili.h"
 #include "activity/setting_activity.hpp"
-#include "activity/hint_activity.hpp"
 #include "activity/search_activity_tv.hpp"
+#include "activity/hint_activity.hpp"
 #include "fragment/setting_network.hpp"
 #include "fragment/test_rumble.hpp"
 #include "utils/config_helper.hpp"
@@ -24,6 +24,7 @@
 #include "view/text_box.hpp"
 #include "view/selector_cell.hpp"
 #include "view/mpv_core.hpp"
+#include "view/video_view.hpp"
 
 #if defined(__APPLE__) || defined(__linux__) || defined(_WIN32)
 #include "borealis/platforms/desktop/desktop_platform.hpp"
@@ -35,15 +36,15 @@
 
 using namespace brls::literals;
 
-const std::string OPENSOURCE =
+const std::string_view OPENSOURCE =
     "--------------------------------\n"
-    "FFmpeg\n"
+    "FFmpeg {}\n"
     "--------------------------------\n"
     "Official site:    https://www.ffmpeg.org\n\n"
     "Copyright (c) FFmpeg developers and contributors.\n\n"
     "Licensed under LGPLv2.1 or later\n\n\n"
     "--------------------------------\n"
-    "mpv\n"
+    "{}\n"
     "--------------------------------\n"
     "Official site:    https://mpv.io\n\n"
     "Copyright (c) mpv developers and contributors.\n\n"
@@ -189,20 +190,29 @@ void SettingActivity::onContentAvailable() {
         return true;
     });
 
-#if !defined(__SWITCH__) && !defined(IOS) && !defined(__PSV__) && !defined(PS4)
-    btnOpenConfig->registerClickAction([](...) -> bool {
-        auto* p = (brls::DesktopPlatform*)brls::Application::getPlatform();
-        p->openBrowser(ProgramConfig::instance().getConfigDir());
-        return true;
-    });
+#if defined(__SWITCH__) || defined(__PSV__) || defined(PS4)
+    btnOpenConfig->title->setText("wiliwili/setting/tools/others/config_dir"_i18n);
+#endif
 #ifdef __linux__
     if (brls::isSteamDeck()) {
-        btnOpenConfig->setVisibility(brls::Visibility::GONE);
+        btnOpenConfig->title->setText("wiliwili/setting/tools/others/config_dir"_i18n);
     }
 #endif
-#else
-    btnOpenConfig->setVisibility(brls::Visibility::GONE);
+    btnOpenConfig->registerClickAction([](...) -> bool {
+        auto configPath = ProgramConfig::instance().getConfigDir();
+        brls::Application::notify("wiliwili/setting/tools/others/config_dir"_i18n + ": " + configPath);
+#if !defined(__SWITCH__) && !defined(__PSV__) && !defined(PS4)
+#ifdef __linux__
+        if (!brls::isSteamDeck())
 #endif
+        {
+            auto* p = (brls::DesktopPlatform*)brls::Application::getPlatform();
+            p->openBrowser(configPath);
+        }
+#endif
+        return true;
+    });
+
     btnTutorialFont->registerClickAction([](...) -> bool {
         auto dialog =
             new brls::Dialog((brls::Box*)brls::View::createFromXMLResource("fragment/settings_tutorial_font.xml"));
@@ -241,29 +251,33 @@ void SettingActivity::onContentAvailable() {
     btnReleaseChecker->title->setText("wiliwili/setting/tools/others/release"_i18n + " (" + "hints/current"_i18n +
                                       ": " + version + ")");
     btnReleaseChecker->registerClickAction([](...) -> bool {
-        // todo: 弹出一个提示提醒用户正在检查更新
+        brls::Application::notify("wiliwili/setting/tools/others/checking_update"_i18n);
         APPVersion::instance().checkUpdate(0, true);
         return true;
     });
 
     labelAboutVersion->setText(version
 #if defined(BOREALIS_USE_DEKO3D)
-                                + " (deko3d)"
+                               + " (deko3d)"
 #elif defined(BOREALIS_USE_OPENGL)
 #if defined(USE_GL2)
-                                + " (OpenGL2)"
+                               + " (OpenGL2)"
 #elif defined(USE_GLES2)
-                                + " (OpenGL ES2)"
+                               + " (OpenGL ES2)"
 #elif defined(USE_GLES3)
-                                + " (OpenGL ES3)"
+                               + " (OpenGL ES3)"
 #else
-                                + " (OpenGL)"
+                               + " (OpenGL)"
 #endif
 #elif defined(BOREALIS_USE_D3D11)
-                                + " (D3D11)"
+                               + " (D3D11)"
+#elif defined(BOREALIS_USE_GXM)
+                               + " (GXM)"
 #endif
     );
-    labelOpensource->setText(OPENSOURCE);
+    auto& mpv = MPVCore::instance();
+    labelOpensource->setText(fmt::format(fmt::runtime(OPENSOURCE),
+        mpv.getString("ffmpeg-version"), mpv.getString("mpv-version")));
 
     /// Quit APP
 #ifdef IOS
@@ -281,8 +295,9 @@ void SettingActivity::onContentAvailable() {
     auto& conf = ProgramConfig::instance();
 
     /// Hide bottom bar
-    cellHideBar->init("wiliwili/setting/app/others/hide_bottom"_i18n, conf.getBoolOption(SettingItem::HIDE_BOTTOM_BAR),
-                      [this](bool value) {
+    cellShowBar->init("wiliwili/setting/app/others/show_bottom"_i18n, !conf.getBoolOption(SettingItem::HIDE_BOTTOM_BAR),
+                      [](bool value) {
+                          value = !value;
                           ProgramConfig::instance().setSettingItem(SettingItem::HIDE_BOTTOM_BAR, value);
                           // 更新设置
                           brls::AppletFrame::HIDE_BOTTOM_BAR = value;
@@ -294,29 +309,52 @@ void SettingActivity::onContentAvailable() {
                               if (!frame) continue;
                               frame->setFooterVisibility(value ? brls::Visibility::GONE : brls::Visibility::VISIBLE);
                           }
-
-                          if (value) {
-                              ProgramConfig::instance().setSettingItem(SettingItem::HIDE_FPS, true);
-                              brls::Application::setFPSStatus(false);
-                          }
-                          this->cellHideFPS->setOn(true);
                       });
 
     /// Hide FPS
-    cellHideFPS->init("wiliwili/setting/app/others/hide_fps"_i18n, conf.getBoolOption(SettingItem::HIDE_FPS),
+    cellShowFPS->init("wiliwili/setting/app/others/show_fps"_i18n, !conf.getBoolOption(SettingItem::HIDE_FPS),
                       [](bool value) {
-                          ProgramConfig::instance().setSettingItem(SettingItem::HIDE_FPS, value);
-                          brls::Application::setFPSStatus(!value);
+                          ProgramConfig::instance().setSettingItem(SettingItem::HIDE_FPS, !value);
+                          brls::Application::setFPSStatus(value);
                       });
 
     /// Limited FPS
     auto fpsOption = conf.getOptionData(SettingItem::LIMITED_FPS);
+    int swapInterval = conf.getSettingItem(SettingItem::SWAP_INTERVAL, 1);
+    int limitedFPS = conf.getSettingItem(SettingItem::LIMITED_FPS, 0);
+    int fpsIndex = conf.getIntOptionIndex(SettingItem::LIMITED_FPS);
+    if ((limitedFPS > 0 && fpsIndex == 0) || (swapInterval == 0 && fpsIndex == 0) ||
+        swapInterval < 0 || swapInterval > 4) {
+        // 用户自定义配置
+        selectorFPS->setVisibility(brls::Visibility::GONE);
+    } else if (limitedFPS == 0) {
+        // 垂直同步
+        fpsIndex = swapInterval - 1;
+    } else {
+        // 关闭垂直同步，限制帧数
+        fpsIndex += 3;
+    }
     selectorFPS->init("wiliwili/setting/app/others/limited_fps"_i18n,
-                      {"wiliwili/setting/app/others/limited_fps_vsync"_i18n, "30", "60", "90", "120"},
-                      (size_t)conf.getIntOptionIndex(SettingItem::LIMITED_FPS), [fpsOption](int data) {
-                          int fps = fpsOption.rawOptionList[data];
-                          brls::Application::setLimitedFPS(fps);
-                          ProgramConfig::instance().setSettingItem(SettingItem::LIMITED_FPS, fps);
+                      {"wiliwili/setting/app/others/limited_fps_vsync"_i18n,
+                       std::string{"1/2 "} + "wiliwili/setting/app/others/limited_fps_vsync"_i18n,
+                       std::string{"1/3 "} + "wiliwili/setting/app/others/limited_fps_vsync"_i18n,
+                       std::string{"1/4 "} + "wiliwili/setting/app/others/limited_fps_vsync"_i18n,
+                       "30", "60", "90", "120"},
+                      fpsIndex, [fpsOption](int data) {
+                          if (data <= 3) {
+                              // 垂直同步
+                              ProgramConfig::instance().setSettingItem(SettingItem::LIMITED_FPS, 0);
+                              ProgramConfig::instance().setSettingItem(SettingItem::SWAP_INTERVAL, data + 1);
+                              brls::Application::setLimitedFPS(0);
+                              brls::Application::setSwapInterval(data + 1);
+                          } else {
+                              // 限制帧数
+                              int fps = fpsOption.rawOptionList[data - 3];
+                              ProgramConfig::instance().setSettingItem(SettingItem::LIMITED_FPS, fps);
+                              ProgramConfig::instance().setSettingItem(SettingItem::SWAP_INTERVAL, 0);
+                              brls::Application::setLimitedFPS(fps);
+                              brls::Application::setSwapInterval(0);
+                          }
                           return true;
                       });
 
@@ -354,7 +392,14 @@ void SettingActivity::onContentAvailable() {
                              brls::Application::getPlatform()->getVideoContext()->fullScreen(value);
                          });
 
-    auto setOnTopCell = [this](bool enabled){
+    cellWindowFullscreen->init(
+        "wiliwili/setting/app/playback/window_fullscreen_on_app_fullscreen"_i18n,
+        conf.getBoolOption(SettingItem::PLAYER_WINDOW_FULLSCREEN_ON_APP_FULLSCREEN), [](bool value) {
+            ProgramConfig::instance().setSettingItem(SettingItem::PLAYER_WINDOW_FULLSCREEN_ON_APP_FULLSCREEN, value);
+            VideoView::WINDOW_FULLSCREEN_ON_APP_FULLSCREEN = value;
+        });
+
+    auto setOnTopCell = [this](bool enabled) {
         if (enabled) {
             cellOnTopMode->setDetailTextColor(brls::Application::getTheme()["brls/list/listItem_value_color"]);
         } else {
@@ -383,6 +428,7 @@ void SettingActivity::onContentAvailable() {
 
 #else
     cellFullscreen->setVisibility(brls::Visibility::GONE);
+    cellWindowFullscreen->setVisibility(brls::Visibility::GONE);
     cellOnTopMode->setVisibility(brls::Visibility::GONE);
 #endif
 
@@ -471,6 +517,13 @@ void SettingActivity::onContentAvailable() {
     selectorKeymap->setVisibility(brls::Visibility::GONE);
 #endif
 
+    /// Swap ABXY
+    btnKeymapSwap->init(
+        "wiliwili/setting/app/others/keymap/swap"_i18n, conf.getBoolOption(SettingItem::APP_SWAP_ABXY), [](bool data) {
+            ProgramConfig::instance().setSettingItem(SettingItem::APP_SWAP_ABXY, data);
+            DialogHelper::quitApp();
+        });
+
     /// App language
     static int langIndex = conf.getStringOptionIndex(SettingItem::APP_LANG);
     selectorLang->init("wiliwili/setting/app/others/language/header"_i18n,
@@ -509,7 +562,7 @@ void SettingActivity::onContentAvailable() {
     auto bandwidthOption = conf.getOptionData(SettingItem::AUDIO_QUALITY);
     selectorQuality->init(
         "wiliwili/setting/app/playback/audio_quality"_i18n,
-        {"wiliwili/home/common/high"_i18n, "wiliwili/home/common/medium"_i18n, "wiliwili/home/common/low"_i18n},
+        {"wiliwili/setting/app/playback/dolby"_i18n, "wiliwili/setting/app/playback/hi_res"_i18n, "wiliwili/home/common/high"_i18n, "wiliwili/home/common/medium"_i18n, "wiliwili/home/common/low"_i18n},
         conf.getIntOptionIndex(SettingItem::AUDIO_QUALITY), [bandwidthOption](int data) {
             ProgramConfig::instance().setSettingItem(SettingItem::AUDIO_QUALITY, bandwidthOption.rawOptionList[data]);
             bilibili::BilibiliClient::AUDIO_QUALITY = bandwidthOption.rawOptionList[data];
@@ -623,10 +676,10 @@ void SettingActivity::onContentAvailable() {
             ProgramConfig::instance().setSettingItem(SettingItem::HTTP_PROXY, httpProxy);
             ProgramConfig::instance().setProxy(httpProxy);
         },
-        "http://127.0.0.1:7890", "wiliwili/setting/app/network/proxy_hint"_i18n, 64);
+        "wiliwili/setting/app/network/proxy_hint"_i18n, "wiliwili/setting/app/network/proxy_hint"_i18n, 64);
 
 /// Hardware decode
-#ifdef PS4
+#if defined(PS4) || defined(__PSV__) && defined(BOREALIS_USE_OPENGL)
     btnHWDEC->setVisibility(brls::Visibility::GONE);
 #else
     btnHWDEC->init("wiliwili/setting/app/playback/hwdec"_i18n, conf.getBoolOption(SettingItem::PLAYER_HWDEC),
@@ -638,6 +691,19 @@ void SettingActivity::onContentAvailable() {
                    });
 #endif
 
+    /// Auto Play when open video detail page
+    btnAutoPlay->init("wiliwili/setting/app/playback/auto_play"_i18n, conf.getBoolOption(SettingItem::PLAYER_AUTO_PLAY),
+                      [](bool value) {
+                          ProgramConfig::instance().setSettingItem(SettingItem::PLAYER_AUTO_PLAY, value);
+                          MPVCore::AUTO_PLAY = value;
+                      });
+
+    /// Auto fullscreen when entering player page
+    btnAutoFullscreen->init("wiliwili/setting/app/playback/auto_fullscreen"_i18n,
+                            conf.getBoolOption(SettingItem::PLAYER_AUTO_FULLSCREEN), [](bool value) {
+                                ProgramConfig::instance().setSettingItem(SettingItem::PLAYER_AUTO_FULLSCREEN, value);
+                            });
+
     /// Decode quality
     btnQuality->init("wiliwili/setting/app/playback/low_quality"_i18n,
                      conf.getBoolOption(SettingItem::PLAYER_LOW_QUALITY), [](bool value) {
@@ -646,6 +712,35 @@ void SettingActivity::onContentAvailable() {
                          MPVCore::LOW_QUALITY = value;
                          MPVCore::instance().restart();
                      });
+
+    // 添加直播侧边栏弹幕数量设置
+    auto& sidebarConf = ProgramConfig::instance();
+    // 获取实际保存的弹幕数量
+    int sidebarCount = sidebarConf.getIntOption(SettingItem::LIVE_SIDEBAR_DANMAKU_COUNT);
+    // 建立映射关系：实际值到索引
+    const std::vector<int> counts = {0, 10, 25, 50, 100};
+    // 默认选择索引
+    int sidebarIndex = 4; // 默认100条
+    
+    // 根据保存的实际值找到对应的索引
+    for (size_t i = 0; i < counts.size(); i++) {
+        if (sidebarCount == counts[i]) {
+            sidebarIndex = i;
+            break;
+        }
+    }
+    
+    this->selectorLiveSidebarCount->init(
+        "wiliwili/setting/app/ui/live_sidebar_count"_i18n,
+        {"0 ("_i18n + "wiliwili/setting/app/ui/live_sidebar_hide"_i18n + ")", "10", "25", "50", "100"},
+        sidebarIndex,
+        [counts](int data) {
+            // 索引值转换为实际的弹幕数量值
+            const int actualCount = counts[data];
+            ProgramConfig::instance().setSettingItem(SettingItem::LIVE_SIDEBAR_DANMAKU_COUNT, actualCount, true);
+            return true;
+        }
+    );
 }
 
 SettingActivity::~SettingActivity() { brls::Logger::debug("SettingActivity: delete"); }

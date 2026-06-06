@@ -4,14 +4,14 @@
 
 pkgname=ps4-openorbis-musl
 pkgver=1.5
-pkgrel=2
+pkgrel=3
 pkgdesc='musl for ps4'
 arch=('any')
 url='https://github.com/PacBrew/ps4-openorbis-musl'
 license=('MIT')
-options=(!strip libtool)
+options=(!strip !debug libtool)
 source=("https://github.com/PacBrew/ps4-openorbis-musl/archive/140a653299ffcb1457bc63a5ab1f507d7bb37c54.tar.gz" "dns.patch")
-sha256sums=('6094df1c1f37f56392fd1b30f67222976268b940a174219ff42731e27c7e0a6b' 'SKIP')
+sha256sums=('9f2ad49bd688411cab088a55361664dcc8ae9eab5fa0112029263f7dbe583b63' '6db1ff639f68dd1347e1433229fc59702c397bb9a1c228fa246389707501f42f')
 depends=('ps4-openorbis-clang')
 groups=('ps4-openorbis')
 

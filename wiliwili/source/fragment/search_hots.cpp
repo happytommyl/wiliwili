@@ -29,7 +29,6 @@ brls::View *SearchHots::create() { return new SearchHots(); }
 
 SearchHots::~SearchHots() {
     brls::Logger::debug("Fragment Hots: delete");
-    this->recyclingGrid->clearData();
 }
 
 class HotsDataSource : public RecyclingGridDataSource {

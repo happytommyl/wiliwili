@@ -1,6 +1,6 @@
 app-id: cn.xfangfang.wiliwili
 runtime: org.freedesktop.Platform
-runtime-version: '23.08'
+runtime-version: '25.08'
 sdk: org.freedesktop.Sdk
 command: wiliwili
 finish-args:
@@ -18,8 +18,6 @@ finish-args:
   - --talk-name=org.mate.SessionManager
   # control steam client
   - --filesystem=~/.steam
-cleanup-commands:
-  - mkdir -p /app/lib/ffmpeg
 cleanup:
   - '*.a'
   - '*.la'
@@ -36,57 +34,85 @@ modules:
     buildsystem: meson
     config-opts:
       - -Dlibmpv=true
-      - -Dlua=disabled
+      - -Dlua=enabled
       - -Ddebug=false
       - -Dbuild-date=false
       - -Dcplayer=false
       - -Dmanpage-build=disabled
+      - -Dvulkan=disabled
     sources:
       - type: archive
-        url: https://github.com/mpv-player/mpv/archive/refs/tags/v0.38.0.tar.gz
-        sha256: 86d9ef40b6058732f67b46d0bbda24a074fae860b3eaae05bab3145041303066
+        url: https://github.com/mpv-player/mpv/archive/v0.41.0.tar.gz
+        sha256: ee21092a5ee427353392360929dc64645c54479aefdb5babc5cfbb5fad626209
         x-checker-data:
           type: anitya
           project-id: 5348
           stable-only: true
-          url-template: https://github.com/mpv-player/mpv/archive/refs/tags/v$version.tar.gz
+          url-template: https://github.com/mpv-player/mpv/archive/v$version.tar.gz
     modules:
 
       - name: libXpresent
         buildsystem: autotools
         sources:
           - type: archive
-            url: https://xorg.freedesktop.org/archive/individual/lib/libXpresent-1.0.1.tar.xz
-            sha256: b964df9e5a066daa5e08d2dc82692c57ca27d00b8cc257e8e960c9f1cf26231b
+            url: https://xorg.freedesktop.org/archive/individual/lib/libXpresent-1.0.2.tar.xz
+            sha256: 4e5b21b4812206a4b223013606ae31170502c1043038777a1ef8f70c09d37602
             x-checker-data:
               type: anitya
               project-id: 17166
               stable-only: true
               url-template: https://xorg.freedesktop.org/archive/individual/lib/libXpresent-$version.tar.xz
 
-      - name: nv-codec-headers
+      - name: libdisplay-info
         cleanup:
-          - '*'
-        no-autogen: true
-        make-install-args:
-          - PREFIX=/app
+          - /bin
+        buildsystem: meson
         sources:
           - type: archive
-            url: https://github.com/FFmpeg/nv-codec-headers/archive/refs/tags/n12.2.72.0.tar.gz
-            sha256: dbeaec433d93b850714760282f1d0992b1254fc3b5a6cb7d76fc1340a1e47563
+            url: https://gitlab.freedesktop.org/emersion/libdisplay-info/-/releases/0.3.0/downloads/libdisplay-info-0.3.0.tar.xz
+            sha256: 6ae77cd937f9cf7d1321d35c116062c4911e8447010a6a713ac4286f7a9d5987
+        modules:
+          - name: hwdata
+            cleanup:
+              - "*"
+            config-opts:
+              - --disable-blacklist
+            sources:
+              - type: archive
+                url: https://github.com/vcrhonek/hwdata/archive/v0.405.tar.gz
+                sha256: 13605519e72e46aa13d5eede1901a07a6c83cd25ef866a86e7458047b5c81ce5
+
+      - name: luajit
+        no-autogen: true
+        cleanup:
+          - /bin
+          - /include
+          - /lib/pkgconfig
+          - /share/man
+        sources:
+          - type: git
+            url: https://github.com/LuaJIT/LuaJIT.git
+            mirror-urls:
+              - https://luajit.org/git/luajit.git
+            disable-shallow-clone: true
+            commit: 97813fb924edf822455f91a5fbbdfdb349e5984f
             x-checker-data:
-              type: anitya
-              project-id: 223796
-              stable-only: true
-              url-template: https://github.com/FFmpeg/nv-codec-headers/archive/refs/tags/n$version.tar.gz
+              type: json
+              url: https://api.github.com/repos/LuaJIT/LuaJIT/commits
+              commit-query: first( .[].sha )
+              version-query: first( .[].sha )
+              timestamp-query: first( .[].commit.committer.date )
+          - type: shell
+            commands:
+              - sed -i 's|/usr/local|/app|' ./Makefile
 
       - name: libass
         config-opts:
           - --disable-static
         sources:
           - type: archive
-            url: https://github.com/libass/libass/releases/download/0.17.2/libass-0.17.2.tar.gz
-            sha256: a9afb52bf76a2569263fe2038896774c991b35c0968342a03be708e56ea60c3b
+            url: https://github.com/libass/libass/releases/download/0.17.4/libass-0.17.4.tar.gz
+            sha256: a886b3b80867f437bc55cff3280a652bfa0d37b43d2aff39ddf3c4f288b8c5a8
             x-checker-data:
               type: anitya
               project-id: 1560
@@ -96,6 +122,7 @@ modules:
       - name: uchardet
         buildsystem: cmake-ninja
         config-opts:
+          - -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           - -DCMAKE_BUILD_TYPE=Release
           - -DBUILD_STATIC=0
         sources:
@@ -117,46 +144,11 @@ modules:
         sources:
           - type: git
             url: https://github.com/haasn/libplacebo.git
-            commit: 64c1954570f1cd57f8570a57e51fb0249b57bb90
-            tag: v6.338.2
+            commit: cee9b076f2c63104ccfd497fa79c39a867293ec4
+            tag: v7.360.1
             x-checker-data:
               type: git
               tag-pattern: ^v([\d.]+)$
-
-      - name: ffmpeg
-        cleanup:
-          - /include
-          - /lib/pkgconfig
-          - /share/ffmpeg/examples
-        config-opts:
-          - --disable-debug
-          - --enable-shared
-          - --disable-static
-          - --enable-gnutls
-          - --enable-gpl
-          - --disable-doc
-          - --disable-programs
-          - --disable-encoders
-          - --disable-muxers
-          - --enable-encoder=png
-          - --enable-libdav1d
-          - --enable-libfontconfig
-          - --enable-libfreetype
-          - --enable-libopus
-          - --enable-librsvg
-          - --enable-libvpx
-          - --enable-libmp3lame
-
-        sources:
-          - type: git
-            url: https://github.com/FFmpeg/FFmpeg.git
-            mirror-urls:
-              - https://git.ffmpeg.org/ffmpeg.git
-            commit: af25a4bfd2503caf3ee485b27b99b620302f5718
-            tag: n7.0.1
-            x-checker-data:
-              type: git
-              tag-pattern: ^n([\d.]{3,7})$
 
   - name: wiliwili
     buildsystem: cmake-ninja
@@ -167,7 +159,8 @@ modules:
       - -DGLFW_BUILD_WAYLAND=ON
       - -DGLFW_BUILD_X11=ON
       - -DUSE_SYSTEM_CURL=ON
-      - -USE_GLES2=OFF
+      - -DUSE_GLES2=OFF
+      - -DUSE_EGL=ON
       - -DBRLS_UNITY_BUILD=ON
       - -DCMAKE_UNITY_BUILD_BATCH_SIZE=16
     builddir: true

@@ -8,11 +8,14 @@
       "tab": "應用設定",
       "playback": {
         "header": "播放設定",
+        "player": "播放機",
         "report": "上傳歷史播放記錄",
         "player_bar": "下方固定顯示進度條",
         "low_quality": "低畫質解碼（以畫質為代價換取更低的功耗）",
         "in_memory_cache": "解码緩存",
         "hwdec": "硬體解碼",
+        "auto_play": "影片詳細頁直接播放",
+        "auto_fullscreen": "進入播放頁後自動全屏",
         "exit_fullscreen": "播放結束時自動退出全屏",
         "play_strategy": "播放方式",
         "auto_play_next_part": "自動播放分集",
@@ -21,9 +24,13 @@
         "auto_no": "播完暫停影片",
         "auto_hint": "「自動播放推薦」 會在播完分集之後自動播放推薦影片",
         "sleep": "定時關閉",
+        "format": "格式",
         "video_codec": "影像編碼",
         "audio_quality": "影像音質",
-        "video_format": "影像格式"
+        "video_format": "影像格式",
+        "dolby": "杜比全景聲",
+        "hi_res": "Hi-Res 無損",
+        "window_fullscreen_on_app_fullscreen": "應用內全屏時自動切換視窗全屏"
       },
       "image": {
         "header": "圖片設定",
@@ -38,13 +45,20 @@
       },
       "ui": {
         "header": "介面設定",
-        "tv_osd": "電視風格播放器"
+        "window": "視窗",
+        "bottom_bar": "底部提示欄",
+        "ui_style": "介面風格",
+        "tv_osd": "電視風格播放器",
+        "live_sidebar_count": "直播間側邊欄彈幕數量",
+        "live_sidebar_hide": "隱藏側邊欄"
       },
       "others": {
-        "header": "其他",
+        "header": "其他設定",
         "vibration": "手柄振動",
         "hide_bottom": "隱藏下方提示欄",
         "hide_fps": "隱藏 FPS",
+        "show_bottom": "顯示提示欄",
+        "show_fps": "顯示 FPS",
         "limited_fps": "最高幀數限制",
         "limited_fps_vsync": "垂直同步",
         "fullscreen": "全荧幕顯示",
@@ -83,6 +97,7 @@
         "opencc": "自動轉換簡體中文 (需要重啓)",
         "keymap": {
           "header": "鍵位風格 (需要重啟)",
+          "swap": "鍵位交換 (需要重啟)",
           "xbox": "Xbox",
           "ps": "PlayStation",
           "keyboard": "鍵盤"
@@ -112,7 +127,9 @@
         "dlna_waiting": "等待 DLNA 投映中...",
         "dlna_quit": "確定要退出投映?",
         "up2date": "應用程式為最新版本。",
+        "checking_update": "正在檢查更新...",
         "release": "檢查更新",
+        "config_dir": "設定檔目錄",
         "config": "開啟設定檔目錄"
       }
     },
@@ -227,6 +244,10 @@
       "history_clear": "清除全部",
       "history_delete": "删除",
       "suggest": "猜你想搜"
+    },
+    "history": {
+      "clear": "清空歷史記錄",
+      "clear_hint": "確認清空歷史記錄？"
     },
     "order": {
       "all": "綜合排序",
@@ -424,7 +445,11 @@
         "color": "彩色",
         "advanced": "高級",
         "level": "按等級篩選",
-        "level_n": "等級 {}"
+        "level_n": "等級 {}",
+        "level_live": "直播過濾等級",
+        "level_live_none": "不過濾 (UL0+)",
+        "level_live_n": "UL{}以上",
+        "level_live_60": "僅UL60"
       },
       "style": {
         "header": "彈幕風格",

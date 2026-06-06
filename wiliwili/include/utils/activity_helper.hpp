@@ -8,6 +8,7 @@
 class Intent {
 public:
     // 开启各类视频
+    static void openAV(const std::string& avid, uint64_t cid = 0, int progress = -1);
     static void openBV(const std::string& bvid, uint64_t cid = 0, int progress = -1);
     static void openSeasonBySeasonId(uint64_t seasonId, int progress = -1);
     static void openSeasonByEpId(uint64_t epId, int progress = -1);
@@ -45,16 +46,8 @@ public:
 
     // 开启动态
     static void openActivity(const std::string& id);
-
-    static void _registerFullscreen(brls::Activity* activity);
 };
 
 #if defined(__linux__) || defined(_WIN32) || defined(__APPLE__)
 #define ALLOW_FULLSCREEN
-#endif
-
-#ifdef ALLOW_FULLSCREEN
-#define registerFullscreen(activity) Intent::_registerFullscreen(activity)
-#else
-#define registerFullscreen(activity) (void)activity
 #endif

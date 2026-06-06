@@ -239,6 +239,8 @@ private:
      * @param downSide 是向下添加还是向上添加，当向上添加时 将 renderedFrame 的 y 减去当前列表项的高度。（y 的值只在向上添加或移除时候改变）
      */
     void addCellAt(size_t index, bool downSide);
+
+    void removeCell(brls::View *view);
 };
 
 class RecyclingGridContentBox : public brls::Box {

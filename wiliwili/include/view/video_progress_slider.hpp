@@ -43,6 +43,9 @@ public:
     // Manual dragging is over
     brls::Event<float>* getProgressSetEvent() { return &progressSetEvent; }
 
+    // Manual dragging is canceled
+    brls::Event<>* getProgressCancelEvent() { return &progressCancelEvent; }
+
     // Add a chapter point
     void addClipPoint(float point);
 
@@ -53,6 +56,10 @@ public:
 
     const std::vector<float>& getClipPoint();
 
+    void setProgressUpdater(const std::function<float(float)>& updater) { progressUpdater = updater; }
+
+    void setManuallyMode();
+
 private:
     brls::InputManager* input;
     brls::Rectangle* line;
@@ -62,6 +69,7 @@ private:
 
     brls::Event<float> progressEvent;
     brls::Event<float> progressSetEvent;
+    brls::Event<> progressCancelEvent;
 
     std::vector<float> clipPointList;
 
@@ -72,6 +80,10 @@ private:
     // while pointer is selected, the last progress value set by setProgress()
     // is stored here to be restored when canceling the selection
     float lastProgress         = 1;
+
+    // pointer 被选中时, 上一次按钮按下时的进度值
+    float lastStartProgress  = 0;
+    std::function <float(float)> progressUpdater{};
 
     void buttonsProcessing();
     void updateUI();

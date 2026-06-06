@@ -3,9 +3,13 @@
 #include <algorithm>
 
 #include "fragment/inbox_chat.hpp"
+
+#include <utils/activity_helper.hpp>
+
 #include "view/inbox_msg_card.hpp"
 #include "view/custom_button.hpp"
 #include "utils/number_helper.hpp"
+#include "utils/shortcut_helper.hpp"
 
 using namespace brls::literals;
 
@@ -62,7 +66,29 @@ public:
 
     size_t getItemCount() override { return list.size(); }
 
-    void onItemSelected(RecyclingGrid* recycler, size_t index) override {}
+    void onItemSelected(RecyclingGrid* recycler, size_t index) override {
+        auto & r = this->list[index];
+        int source{};
+        if (r.content.contains("source") && r.content.at("source").is_number_integer())
+            source = r.content.at("source").get<int>();
+        // msg_type 7 表示视频
+        // source 5 表示 UGC 视频，source 16 表示 PGC 视频
+        if (r.msg_type == 7 && (source == 5 || source == 16)) {
+            // UGC video
+            std::string avid;
+            if (r.content.contains("id") && r.content.at("id").is_string())
+                avid = r.content.at("id").get<std::string>();
+            if (!avid.empty()) {
+                if (source == 5) {
+                    // UGC 视频
+                    Intent::openAV(avid);
+                } else {
+                    // PGC 视频
+                    Intent::openSeasonByEpId(std::stoll(avid), 0);
+                }
+            }
+        }
+    }
 
     bool appendData(const bilibili::InboxMessageResultWrapper& result) {
         bool skip_all = true;
@@ -122,6 +148,11 @@ InboxChat::InboxChat(const bilibili::InboxChatResult& r, std::function<void()> c
         return true;
     });
 
+    this->registerAction(ShortcutHelper::getRefresh(), [this](...) {
+        this->recyclingGrid->refresh();
+        return true;
+    });
+
     labelTalker->setText(r.account_info.name);
 
     if (r.system_msg_type > 0) {
@@ -148,7 +179,7 @@ bool InboxChat::toggleSend() {
 }
 
 void InboxChat::onError(const std::string& error) {
-    brls::Threading::sync([this, error]() { this->recyclingGrid->setError(error); });
+    this->recyclingGrid->setError(error);
 }
 
 void InboxChat::onMsgList(const bilibili::InboxMessageResultWrapper& result, bool refresh) {
@@ -166,11 +197,11 @@ void InboxChat::onMsgList(const bilibili::InboxMessageResultWrapper& result, boo
             datasource = new DataSourceMsgList(result, this->talkerId);
             recyclingGrid->setDefaultCellFocus(datasource->getItemCount() - 1);
             recyclingGrid->setDataSource(datasource);
-            brls::sync([this]() { recyclingGrid->selectRowAt(recyclingGrid->getDefaultCellFocus(), true); });
+            recyclingGrid->selectRowAt(recyclingGrid->getDefaultCellFocus(), true);
         }
     });
 }
 
 void InboxChat::onSendMsg(const bilibili::InboxSendResult& result) {
-    brls::Threading::sync([this]() { this->recyclingGrid->forceRequestNextPage(); });
+    this->recyclingGrid->forceRequestNextPage();
 }

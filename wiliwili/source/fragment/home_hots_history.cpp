@@ -11,25 +11,23 @@
 #include "view/recycling_grid.hpp"
 #include "utils/image_helper.hpp"
 #include "utils/activity_helper.hpp"
+#include "utils/shortcut_helper.hpp"
 
 using namespace brls::literals;
 
 class DataSourceHotsHistoryVideoList : public RecyclingGridDataSource {
 public:
     explicit DataSourceHotsHistoryVideoList(bilibili::HotsHistoryVideoListResult result)
-        : videoList(std::move(result)) {}
+        : videoList(std::move(result)) {
+    }
+
     RecyclingGridItem* cellForRow(RecyclingGrid* recycler, size_t index) override {
         //从缓存列表中取出 或者 新生成一个表单项
         RecyclingGridItemVideoCard* item = (RecyclingGridItemVideoCard*)recycler->dequeueReusableCell("Cell");
 
         bilibili::HotsHistoryVideoResult& r = this->videoList[index];
-        std::string h_ext = ImageHelper::h_ext;
-        if (pystring::endswith(r.pic, ".gif")) {
-            // gif 图片暂时按照 jpg 来解析
-            h_ext = pystring::replace(h_ext, ".webp", ".jpg");
-        }
-        item->setCard(r.pic + h_ext, r.title, r.owner.name, r.pubdate, r.stat.view, r.stat.danmaku,
-                      r.duration);
+        item->setCard(ImageHelper::parseGifImageUrl(r.pic, ImageHelper::h_ext), r.title, r.owner.name,
+                      r.pubdate, r.stat.view, r.stat.danmaku, r.duration);
         item->setAchievement(r.achievement);
         return item;
     }
@@ -62,6 +60,7 @@ HomeHotsHistory::HomeHotsHistory() {
 
 void HomeHotsHistory::onCreate() {
     this->registerTabAction("wiliwili/home/common/refresh"_i18n, brls::ControllerButton::BUTTON_X,
+                            ShortcutHelper::getRefresh(),
                             [this](brls::View* view) -> bool {
                                 this->recyclingGrid->refresh();
                                 return true;

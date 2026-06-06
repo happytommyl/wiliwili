@@ -19,6 +19,10 @@ public:
 
     virtual void onDanmakuInfo(int roomid, const bilibili::LiveDanmakuinfo& info) {}
 
+    virtual void onAnchorInfo(const std::string& face, const std::string& uname) {}
+
+    virtual void onAnchorTitleInfo(const std::string& title) {}
+
     void requestData(int roomid);
 
     void reportHistory(int roomid);
@@ -27,9 +31,18 @@ public:
 
     void requestLiveDanmakuToken(int roomid);
 
+    void requestLiveAnchorInfo(int roomid);
+
+    void requestLiveAnchorTitle(int roomid);
+
     std::string getQualityDescription(int qn);
 
+#ifdef __PSV__
+    // 720P
+    static inline int defaultQuality = 150;
+#else
     static inline int defaultQuality = 0;
+#endif
     bilibili::LiveRoomPlayInfo liveRoomPlayInfo{};
     bilibili::LiveStreamFormatCodec liveUrl{};
     std::unordered_map<int, std::string> qualityDescriptionMap{};

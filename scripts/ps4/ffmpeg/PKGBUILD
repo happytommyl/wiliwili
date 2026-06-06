@@ -2,12 +2,12 @@
 
 pkgname=ps4-openorbis-ffmpeg
 pkgver=6.0
-pkgrel=2
+pkgrel=3
 pkgdesc='ffmpeg port'
 arch=('any')
 url='https://ffmpeg.org/'
 license=('LGPL' 'GPL')
-options=(!strip staticlibs)
+options=(!strip !debug staticlibs)
 makedepends=('ps4-openorbis-pkg-config' 'ps4-openorbis-vars' 'ps4-openorbis-mbedtls')
 depends=('ps4-openorbis-zlib' 'ps4-openorbis-bzip2' 'ps4-openorbis-libass' 'ps4-openorbis-libfribidi' 'ps4-openorbis-freetype')
 source=("https://ffmpeg.org/releases/ffmpeg-$pkgver.tar.xz")

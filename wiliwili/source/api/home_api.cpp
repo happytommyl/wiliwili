@@ -1,6 +1,7 @@
 #include <cpr/cpr.h>
 #include <nlohmann/json.hpp>
 #include "bilibili.h"
+#include "bilibili/api.h"
 #include "bilibili/util/md5.hpp"
 #include "curl/curl.h"
 #include "bilibili/util/http.hpp"
@@ -31,7 +32,7 @@ void BilibiliClient::get_recommend(int index, int num, int fresh_type, std::stri
         });
     }
 
-    HTTP::getResultAsync<RecommendVideoListResultWrapper>(
+    HTTP::getResultWithWbiAsync<RecommendVideoListResultWrapper>(
         Api::Recommend, parameters,
         [callback, index](RecommendVideoListResultWrapper wrapper) {
             wrapper.requestIndex = index;
@@ -43,24 +44,40 @@ void BilibiliClient::get_recommend(int index, int num, int fresh_type, std::stri
 /// 主页 热门 热门综合
 void BilibiliClient::get_hots_all(int index, int num, const std::function<void(HotsAllVideoListResult, bool)>& callback,
                                   const ErrorCallback& error) {
-    HTTP::getResultAsync<HotsAllVideoListResultWrapper>(
-        Api::HotsAll, {{"pn", std::to_string(index)}, {"ps", std::to_string(num)}},
-        [callback](const HotsAllVideoListResultWrapper& wrapper) { callback(wrapper.list, wrapper.no_more); }, error);
+    HTTP::getResultWithWbiAsync<HotsAllVideoListResultWrapper>(
+        Api::HotsAll,
+        {
+            {"pn", std::to_string(index)},
+            {"ps", std::to_string(num)},
+            {"web_location", "bilibili-electron"}
+        },
+        [callback](const HotsAllVideoListResultWrapper& wrapper) { callback(wrapper.list, wrapper.no_more); },
+        error);
 }
 
 /// 主页 热门 每周推荐列表
 void BilibiliClient::get_hots_weekly_list(const std::function<void(HotsWeeklyListResult)>& callback,
                                           const ErrorCallback& error) {
     HTTP::getResultAsync<HotsWeeklyResultWrapper>(
-        Api::HotsWeeklyList, {}, [callback](const HotsWeeklyResultWrapper& wrapper) { callback(wrapper.list); }, error);
+        Api::HotsWeeklyList,
+        {
+            {"web_location", "bilibili-electron"},
+        },
+        [callback](const HotsWeeklyResultWrapper& wrapper) { callback(wrapper.list); },
+        error);
 }
 
 /// 主页 热门 每周推荐
 void BilibiliClient::get_hots_weekly(
-    int number, const std::function<void(HotsWeeklyVideoListResult, std::string, std::string)>& callback,
+    int number,
+    const std::function<void(HotsWeeklyVideoListResult, std::string, std::string)>& callback,
     const ErrorCallback& error) {
-    HTTP::getResultAsync<HotsWeeklyVideoListResultWrapper>(
-        Api::HotsWeekly, {{"number", std::to_string(number)}},
+    HTTP::getResultWithWbiAsync<HotsWeeklyVideoListResultWrapper>(
+        Api::HotsWeekly,
+        {
+            {"number", std::to_string(number)},
+            {"web_location", "bilibili-electron"},
+        },
         [callback](const HotsWeeklyVideoListResultWrapper& wrapper) {
             callback(wrapper.list, wrapper.config.label, wrapper.reminder);
         },
@@ -70,8 +87,11 @@ void BilibiliClient::get_hots_weekly(
 /// 主页 热门 入站必刷
 void BilibiliClient::get_hots_history(const std::function<void(HotsHistoryVideoListResult, std::string)>& callback,
                                       const ErrorCallback& error) {
-    HTTP::getResultAsync<HotsHistoryVideoListResultWrapper>(
-        Api::HotsHistory, {},
+    HTTP::getResultWithWbiAsync<HotsHistoryVideoListResultWrapper>(
+        Api::HotsHistory,
+        {
+            {"web_location", "bilibili-electron"},
+        },
         [callback](const HotsHistoryVideoListResultWrapper& wrapper) { callback(wrapper.list, wrapper.explain); },
         error);
 }
@@ -80,18 +100,30 @@ void BilibiliClient::get_hots_history(const std::function<void(HotsHistoryVideoL
 void BilibiliClient::get_hots_rank(int rid, const std::string& type,
                                    const std::function<void(HotsRankVideoListResult, std::string)>& callback,
                                    const ErrorCallback& error) {
-    HTTP::getResultAsync<HotsRankVideoListResultWrapper>(
-        Api::HotsRank, {{"rid", std::to_string(rid)}, {"type", type}},
-        [callback](auto wrapper) { callback(wrapper.list, wrapper.note); }, error);
+    HTTP::getResultWithWbiAsync<HotsRankVideoListResultWrapper>(
+        Api::HotsRank,
+        {
+            {"rid", std::to_string(rid)},
+            {"type", type},
+            {"web_location", "bilibili-electron"},
+        },
+        [callback](const auto& wrapper) { callback(wrapper.list, wrapper.note); },
+        error);
 }
 
 /// 主页 热门 排行榜 官方
 void BilibiliClient::get_hots_rank_pgc(int season_type, int day,
                                        const std::function<void(HotsRankPGCVideoListResult, std::string)>& callback,
                                        const ErrorCallback& error) {
-    HTTP::getResultAsync<HotsRankPGCVideoListResultWrapper>(
-        Api::HotsRankPGC, {{"season_type", std::to_string(season_type)}, {"day", std::to_string(day)}},
-        [callback](auto wrapper) { callback(wrapper.list, wrapper.note); }, error);
+    HTTP::getResultWithWbiAsync<HotsRankPGCVideoListResultWrapper>(
+        Api::HotsRankPGC,
+        {
+            {"season_type", std::to_string(season_type)},
+            {"day", std::to_string(day)},
+            {"web_location", "bilibili-electron"},
+        },
+        [callback](auto wrapper) { callback(wrapper.list, wrapper.note); },
+        error);
 }
 
 /// 主页 直播推荐
@@ -117,7 +149,7 @@ void BilibiliClient::get_live_recommend(int parent_area_id, int area_id, int pag
 void BilibiliClient::get_live_recommend_second(int parent_area_id, int area_id, int page,
                                                const std::function<void(LiveSecondResultWrapper)>& callback,
                                                const ErrorCallback& error) {
-    HTTP::getResultAsync<LiveSecondResultWrapper>(
+    HTTP::getResultWithWbiAsync<LiveSecondResultWrapper>(
         Api::LiveFeedSecond,
         {
             {"parent_area_id", std::to_string(parent_area_id)},
@@ -190,49 +222,40 @@ void BilibiliClient::get_pgc_filter(const std::string& index_type,
 /// 主页 追番/影视 获取全部分类
 void BilibiliClient::get_pgc_all_filter(const std::function<void(PGCIndexFilters)>& callback,
                                         const ErrorCallback& error) {
-    PGCIndexFilters res;
-    BilibiliClient::get_pgc_filter(
-        "1",
-        [callback, error, res](auto wrapper) mutable {
-            wrapper.index_name = "追番";
-            res["1"]           = wrapper;
-            BilibiliClient::get_pgc_filter(
-                "2",
-                [callback, error, res](auto wrapper) mutable {
-                    wrapper.index_name = "电影";
-                    res["2"]           = wrapper;
-                    BilibiliClient::get_pgc_filter(
-                        "5",
-                        [callback, error, res](auto wrapper) mutable {
-                            wrapper.index_name = "电视剧";
-                            res["5"]           = wrapper;
-                            BilibiliClient::get_pgc_filter(
-                                "3",
-                                [callback, error, res](auto wrapper) mutable {
-                                    wrapper.index_name = "纪录片";
-                                    res["3"]           = wrapper;
-                                    BilibiliClient::get_pgc_filter(
-                                        "7",
-                                        [callback, error, res](auto wrapper) mutable {
-                                            wrapper.index_name = "综艺";
-                                            res["7"]           = wrapper;
-                                            BilibiliClient::get_pgc_filter(
-                                                "102",
-                                                [callback, res](auto wrapper) mutable {
-                                                    wrapper.index_name = "影视综合";
-                                                    res["102"]         = wrapper;
-                                                    callback(res);
-                                                },
-                                                error);
-                                        },
-                                        error);
-                                },
-                                error);
-                        },
-                        error);
+    cpr::async([callback, error]() {
+        std::vector<std::string> index_types = {"1", "2", "5", "3", "7", "102"};
+        std::vector<std::string> index_names = {"追番", "电影", "电视剧", "纪录片", "综艺", "影视综合"};
+        cpr::MultiPerform multiperform;
+        for (auto& i : index_types) {
+            auto session = HTTP::createSession();
+            session->SetUrl(HTTP::PROTOCOL + Api::PGCIndexFilter);
+            session->SetParameters({{"type", "2"}, {"index_type", i}});
+            multiperform.AddSession(session);
+        }
+
+        std::vector<cpr::Response> responses = multiperform.Get();
+        PGCIndexFilters res;
+        for (size_t i = 0; i < responses.size(); i++) {
+            auto& r = responses[i];
+            if (r.error) {
+                ERROR_MSG(r.error.message, -1);
+                return;
+            } else if (r.status_code != 200) {
+                ERROR_MSG("Network error. [Status code: " + std::to_string(r.status_code) + " ]", r.status_code);
+                return;
+            }
+            int ret = HTTP::parseJson<PGCIndexFilterWrapper>(
+                r,
+                [&res, &index_types, &index_names, i, callback](auto wrapper) {
+                    wrapper.index_name  = index_names[i];
+                    res[index_types[i]] = wrapper;
                 },
                 error);
-        },
-        error);
+            if (ret != 0) {
+                return;
+            }
+        }
+        callback(res);
+    });
 }
 }  // namespace bilibili

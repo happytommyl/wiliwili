@@ -45,7 +45,13 @@ std::string APPVersion::getPlatform() {
 #elif defined(__WINRT__)
     return "UWP";
 #elif defined(_WIN32)
+#if defined(_M_ARM64)
+    return "Windows-arm";
+#elif defined(_WIN64)
     return "Windows";
+#else
+    return "Windows-x86";
+#endif
 #elif defined(__SWITCH__)
 #ifdef BOREALIS_USE_DEKO3D
     return "NX-deko3d";
@@ -53,7 +59,11 @@ std::string APPVersion::getPlatform() {
     return "NX";
 #endif
 #elif defined(__PSV__)
+#ifdef BOREALIS_USE_GXM
+    return "PSVita-GXM";
+#else
     return "PSVita";
+#endif
 #else
     return "Unknown";
 #endif
@@ -77,18 +87,34 @@ bool APPVersion::needUpdate(std::string latestVersion) {
 }
 
 void APPVersion::checkUpdate(int delay, bool showUpToDateDialog) {
+    static bool checking_update = false;
+    if (checking_update) return;
+    checking_update = true;
     brls::Threading::delay(delay, [showUpToDateDialog]() {
         std::string url =
             ProgramConfig::instance().getSettingItem(SettingItem::CUSTOM_UPDATE_API, APPVersion::RELEASE_API);
 
         cpr::GetCallback(
             [showUpToDateDialog](cpr::Response r) {
+                checking_update = false;
                 try {
-                    if (r.status_code != 200 || r.text.empty()) {
-                        brls::Logger::error("Cannot check update: {} {}", r.status_code, r.text);
+                    if (showUpToDateDialog && r.status_code == 403) {
+                        // GitHub api limited
+                        if (const nlohmann::json res = nlohmann::json::parse(r.text); res.contains("message")) {
+                            auto msg = res.at("message").get<std::string>();
+                            brls::sync([msg]() { brls::Application::notify(msg); });
+                        }
                         return;
                     }
-                    nlohmann::json res = nlohmann::json::parse(r.text);
+                    if (r.status_code != 200 || r.text.empty()) {
+                        brls::Logger::error("Cannot check update: {} {}", r.status_code, r.error.message);
+                        if (showUpToDateDialog) {
+                            auto msg = r.reason;
+                            brls::sync([msg]() { brls::Application::notify(msg); });
+                        }
+                        return;
+                    }
+                    const nlohmann::json res = nlohmann::json::parse(r.text);
                     auto info          = res.get<ReleaseNote>();
                     if (info.tag_name.empty()) {
                         brls::Logger::error("Cannot parse update info, tag_name is empty");
@@ -98,7 +124,7 @@ void APPVersion::checkUpdate(int delay, bool showUpToDateDialog) {
                         brls::Logger::info("App is up to date");
                         if (showUpToDateDialog) {
                             brls::sync(
-                                []() { DialogHelper::showDialog("wiliwili/setting/tools/others/up2date"_i18n); });
+                                []() { brls::Application::notify("wiliwili/setting/tools/others/up2date"_i18n); });
                         }
                         return;
                     }

@@ -27,7 +27,39 @@ class SearchHistory;
 class AutoTabFrame;
 typedef brls::Event<std::string> UpdateSearchEvent;
 
-class DataSourceSearchVideoList : public RecyclingGridDataSource {
+class titleParser {
+public:
+    /**
+     * 解析搜索结果标题
+     * @param title 带有em标签的标题
+     * @return 富文本元素
+     */
+    static RichTextData parseTitle(const std::string& title) {
+        static NVGcolor fontColor = brls::Application::getTheme().getColor("brls/text");
+        static NVGcolor biliColor = brls::Application::getTheme().getColor("color/bilibili");
+        RichTextData d;
+        std::string res    = title;
+        res                = pystring::replace(res, "&amp;", "&");
+        res                = pystring::replace(res, "&lt;", "<");
+        res                = pystring::replace(res, "&gt;", ">");
+        res                = pystring::replace(res, "&quot;", "\"");
+        res                = pystring::replace(res, "&nbsp;", " ");
+        auto p1            = pystring::split(res, "<em class=\"keyword\">");
+        if (!p1[0].empty()) d.emplace_back(std::make_shared<RichTextSpan>(p1[0], fontColor));
+        for (size_t i = 1; i < p1.size(); i++) {
+            auto p2 = pystring::split(p1[i], "</em>", 1);
+            if (p2.size() < 2) {
+                d.emplace_back(std::make_shared<RichTextSpan>(p1[i], fontColor));
+                continue;
+            }
+            if (!p2[0].empty()) d.emplace_back(std::make_shared<RichTextSpan>(p2[0], biliColor));
+            if (!p2[1].empty()) d.emplace_back(std::make_shared<RichTextSpan>(p2[1], fontColor));
+        }
+        return d;
+    }
+};
+
+class DataSourceSearchVideoList : public RecyclingGridDataSource, public titleParser {
 public:
     explicit DataSourceSearchVideoList(bilibili::VideoItemSearchListResult result) : list(std::move(result)) {}
 
@@ -36,8 +68,9 @@ public:
         RecyclingGridItemVideoCard* item = (RecyclingGridItemVideoCard*)recycler->dequeueReusableCell("Cell");
 
         bilibili::VideoItemSearchResult& r = this->list[index];
-        item->setCard(r.cover + ImageHelper::h_ext, r.title, r.subtitle, r.pubdate, r.play, r.danmaku,
+        item->setCard(r.cover + ImageHelper::h_ext, "", r.subtitle, r.pubdate, r.play, r.danmaku,
                       wiliwili::uglyString2Time(r.rightBottomBadge));
+        item->setTitle(parseTitle(r.title));
         return item;
     }
 
@@ -62,7 +95,7 @@ private:
     bilibili::VideoItemSearchListResult list;
 };
 
-class DataSourceSearchPGCList : public RecyclingGridDataSource {
+class DataSourceSearchPGCList : public RecyclingGridDataSource, public titleParser {
 public:
     DataSourceSearchPGCList(bilibili::VideoItemSearchListResult result) : list(std::move(result)) {}
 
@@ -88,8 +121,9 @@ public:
         if (!r.index_show.empty()) subtitles.emplace_back(r.index_show);
         subtitle = pystring::join(" · ", subtitles);
 
-        item->setCard(r.cover + ImageHelper::v_ext, r.title, subtitle, cv, "简介: " + r.desc, r.badge.text,
-                      r.badge.bg_color, score_count, score, r.season_type_name, r.areas);
+        item->setCard(r.cover + ImageHelper::v_ext, "", subtitle, cv, "简介: " + r.desc, r.badge.text, r.badge.bg_color,
+                      score_count, score, r.season_type_name, r.areas);
+        item->setTitle(parseTitle(r.title));
         return item;
     }
 

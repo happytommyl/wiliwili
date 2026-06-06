@@ -2,12 +2,12 @@
 
 pkgname=ps4-libjbc
 pkgver=f9b00ba55b567c110d42aee09127a1ea18541b92
-pkgrel=1
+pkgrel=2
 pkgdesc='Firmware-agnostic PS4 sandbox escape'
 arch=('any')
 url='https://github.com/sleirsgoevy/ps4-libjbc'
 license=('public domain')
-options=(!strip libtool staticlibs)
+options=(!strip !debug libtool staticlibs)
 source=( "https://github.com/xfangfang/ps4-libjbc/archive/${pkgver}.tar.gz" )
 sha256sums=( 'SKIP' )
 makedepends=( 'ps4-openorbis-vars' )

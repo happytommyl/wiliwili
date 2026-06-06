@@ -6,6 +6,7 @@
 #include "view/text_box.hpp"
 #include "utils/image_helper.hpp"
 #include "utils/activity_helper.hpp"
+#include "utils/shortcut_helper.hpp"
 #include "utils/string_helper.hpp"
 
 using namespace brls::literals;
@@ -100,8 +101,9 @@ public:
         if (pos <= 0) return;
         if (r.item.uri.compare(0, 18, "https://t.bilibili") == 0) {
             // 解析动态id
+            // uri eg: https://t.bilibili.com/123456789012345678#replay123123123123
             std::string t = r.item.uri.substr(pos + 1);
-            Intent::openActivity(t);
+            Intent::openActivity(t.substr(0, t.find_first_of('#')));
             return;
         } else if (r.item.type == "video" || r.item.type == "reply") {
             // 解析BV号
@@ -153,7 +155,8 @@ InboxFeed::~InboxFeed() { brls::Logger::debug("Fragment InboxFeed: delete"); }
 
 void InboxFeed::onCreate() {
     this->requestData(feedMode, true);
-    this->registerTabAction("", brls::ControllerButton::BUTTON_X ,[this](brls::View* view) {
+    this->registerTabAction("", brls::ControllerButton::BUTTON_X, ShortcutHelper::getRefresh(),
+        [this](brls::View* view) {
         this->recyclingGrid->refresh();
         return true;
     }, true);

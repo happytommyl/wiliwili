@@ -14,13 +14,14 @@ cmake_dependent_option(BUILTIN_NSP "Built in NSP forwarder" OFF "PLATFORM_SWITCH
 # macOS
 # These four options are only for macOS app bundling usage.
 # Do not use it until you know what you are doing.
-cmake_dependent_option(MAC_IntelChip "Build for x86_64 (10.11)" OFF "APPLE;NOT PLATFORM_IOS" OFF)
+cmake_dependent_option(MAC_IntelChip_Old "Build for x86_64 (10.11)" OFF "APPLE;NOT PLATFORM_IOS" OFF)
+cmake_dependent_option(MAC_IntelChip "Build for x86_64 (10.15)" OFF "APPLE;NOT PLATFORM_IOS" OFF)
 cmake_dependent_option(MAC_AppleSilicon "Build for arm64 (11.0)" OFF "APPLE;NOT PLATFORM_IOS" OFF)
 cmake_dependent_option(MAC_Universal "Support x86_64;arm64 at the same time" OFF "APPLE;NOT PLATFORM_IOS" OFF)
 cmake_dependent_option(MAC_DOWNLOAD_DYLIB "Using precompiled dylib instead of system provided" OFF "APPLE;NOT PLATFORM_IOS" OFF)
 
 # Linux
-# Using CMAKE_INSTALL_PREFIX specifies the location where the application is installed.
+# Using CMAKE_INSTALL_PREFIX to specify the location where the application is installed.
 cmake_dependent_option(INSTALL "Install to system path" OFF "UNIX;NOT APPLE" OFF)
 
 # For Developer
@@ -40,6 +41,7 @@ option(USE_SYSTEM_FMT "" ${USE_SHARED_LIB})
 option(USE_SYSTEM_TINYXML2 "" ${USE_SHARED_LIB})
 option(USE_SYSTEM_SDL2 "" ${USE_SHARED_LIB})
 option(USE_SYSTEM_MONGOOSE "" ${USE_SHARED_LIB})
+option(USE_SYSTEM_LUNASVG "" ${USE_SHARED_LIB})
 option(USE_SYSTEM_GLFW "Not recommended because we used a modified GLFW" OFF)
 
 option(DISABLE_OPENCC "Disable Chinese Simplified and Chinese Traditional Conversion" OFF)
@@ -81,8 +83,8 @@ add_definitions(-DFONS_HASH_LUT_SIZE=4096)
 # Project Info
 project(wiliwili)
 set(VERSION_MAJOR "1")
-set(VERSION_MINOR "4")
-set(VERSION_REVISION "1")
+set(VERSION_MINOR "6")
+set(VERSION_REVISION "0")
 if (NOT VERSION_BUILD)
     set(VERSION_BUILD "0")
 endif ()
@@ -90,7 +92,7 @@ set(PROJECT_AUTHOR "xfangfang")
 set(PACKAGE_NAME cn.xfangfang.wiliwili)
 set(VITA_TITLEID "WILIWILI0")
 set(PSN_TITLE_ID "WILI00000")
-set(VITA_VERSION "01.41")
+set(VITA_VERSION "01.60")
 set(PROJECT_ICON ${CMAKE_CURRENT_SOURCE_DIR}/resources/icon/icon.jpg)
 set(PROJECT_RESOURCES ${CMAKE_CURRENT_SOURCE_DIR}/resources)
 set(APP_VERSION "${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_REVISION}")
@@ -186,6 +188,8 @@ file(GLOB_RECURSE MAIN_SRC wiliwili/source/*.cpp)
 if (WIN32)
     configure_file("${CMAKE_SOURCE_DIR}/wiliwili/app_win32.rc.in" "${CMAKE_BINARY_DIR}/app_win32.rc")
     list(APPEND MAIN_SRC ${CMAKE_BINARY_DIR}/app_win32.rc)
+elseif (PLATFORM_PSV)
+    configure_file("${CMAKE_SOURCE_DIR}/wiliwili/app_vita.xml.in" "${CMAKE_BINARY_DIR}/template.xml")
 elseif (PLATFORM_SWITCH)
     # System service initialization functions required for libnx
     list(APPEND MAIN_SRC ${BOREALIS_LIBRARY}/lib/platforms/switch/switch_wrapper.c)
@@ -205,6 +209,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 )
 set_source_files_properties(
         wiliwili/source/utils/config_helper.cpp
+        wiliwili/source/view/mpv_core.cpp
         wiliwili/source/activity/setting_activity.cpp
         wiliwili/source/activity/dlna_activity.cpp
         PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
@@ -243,8 +248,6 @@ if (PLATFORM_DESKTOP)
                 "${CMAKE_CURRENT_SOURCE_DIR}/scripts/linux/${PACKAGE_NAME}.appdata.xml"
                 "${CMAKE_CURRENT_SOURCE_DIR}/scripts/linux/${PACKAGE_NAME}.desktop")
     endif ()
-
-    list(APPEND APP_PLATFORM_LIB clip)
 elseif (PLATFORM_IOS)
     ios_bundle(
             "${CMAKE_CURRENT_SOURCE_DIR}/library/borealis/demo/ios/tvos/Splash.storyboard"
@@ -254,24 +257,29 @@ elseif (PLATFORM_IOS)
             "wiliwili"
             "${APP_VERSION}")
 elseif (PLATFORM_PSV)
+    set(PSV_ASSETS_FILES
+        ${CMAKE_SOURCE_DIR}/scripts/psv/sce_sys/icon0.png sce_sys/icon0.png
+        ${CMAKE_SOURCE_DIR}/scripts/psv/sce_sys/pic0.png sce_sys/pic0.png
+        ${CMAKE_SOURCE_DIR}/scripts/psv/sce_sys/bg.png sce_sys/livearea/contents/bg.png
+        ${CMAKE_SOURCE_DIR}/scripts/psv/sce_sys/startup.png sce_sys/livearea/contents/startup.png
+        ${CMAKE_BINARY_DIR}/template.xml sce_sys/livearea/contents/template.xml
+        )
+    if (NOT USE_LIBROMFS)
+        list(APPEND PSV_ASSETS_FILES ${CMAKE_SOURCE_DIR}/resources resources)
+    endif ()
+    if (NOT USE_GXM)
+        list(APPEND PSV_ASSETS_FILES ${CMAKE_SOURCE_DIR}/scripts/psv/module/ module)
+    endif ()
+    if (USE_VITA_SHARK)
+        list(APPEND PSV_ASSETS_FILES "${CMAKE_BINARY_DIR}/vendor/SceShaccCg" module)
+    endif ()
+    list(APPEND APP_PLATFORM_LIB SceVshBridge_stub)
     set(VITA_MKSFOEX_FLAGS "${VITA_MKSFOEX_FLAGS} -d ATTRIBUTE2=12") # max heap size mode
-    # I don't know why, but only manually specifying the link libraries in this order will not cause the program to crash
-    set(APP_PLATFORM_LIB
-            stdc++;mpv;
-            avfilter;swscale;avformat;avcodec;swresample;avutil;
-            ass;harfbuzz;fribidi;freetype;bz2;png16;
-            webp;sharpyuv;
-            m;z;
-            SceCodecEngine_stub
-            SceVideodec_stub
-            SceAudiodec_stub)
     vita_create_self(${PROJECT_NAME}.self ${PROJECT_NAME} UNSAFE NOASLR)
     vita_create_vpk(${PROJECT_NAME}.vpk ${VITA_TITLEID} ${PROJECT_NAME}.self
             VERSION ${VITA_VERSION}
             NAME ${PROJECT_NAME}
-            FILE ${CMAKE_SOURCE_DIR}/resources resources
-            FILE ${CMAKE_SOURCE_DIR}/scripts/psv/sce_sys sce_sys
-            FILE ${CMAKE_SOURCE_DIR}/scripts/psv/module/ module
+            FILE ${PSV_ASSETS_FILES}
             )
 elseif (PLATFORM_PS4)
     add_self(${PROJECT_NAME})

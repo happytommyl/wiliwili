@@ -19,6 +19,9 @@
 #include <mpv/render_dk3d.h>
 #elif defined(BOREALIS_USE_D3D11)
 #include <mpv/render_dxgi.h>
+#elif defined(BOREALIS_USE_GXM)
+#include <mpv/render_gxm.h>
+#include <nanovg_gxm_utils.h>
 #elif defined(BOREALIS_USE_OPENGL)
 #include <mpv/render_gl.h>
 #if defined(__PSV__) || defined(PS4)
@@ -224,6 +227,8 @@ public:
      */
     void setAspect(const std::string &value);
 
+    void setMirror(bool value);
+
     /**
      * 设置视频亮度
      * @param value [-100, 100]
@@ -247,6 +252,12 @@ public:
     int getGamma() const;
 
     int getHue() const;
+
+    /**
+     * 设置硬解码模式
+     * @param value 为真时将硬解码设置为 auto-copy, 为假时将硬解码设置为 各个平台默认值
+     */
+    void setHwdecCopyMode(bool value);
 
     /**
      * 禁用系统锁屏
@@ -288,7 +299,15 @@ public:
 
     void reset();
 
-    void setShader(const std::string &profile, const std::string &shaders, bool showHint = true);
+    /**
+     * 设置着色器配置
+     * @param profile 配置名
+     * @param shaders 着色器文件
+     * @param settings mpv 配置
+     * @param reset 在设置前是否需要重置
+     */
+    void setShader(const std::string &profile, const std::string &shaders,
+                   const std::vector<std::vector<std::string>> &settings, bool reset = true);
 
     void clearShader(bool showHint = true);
 
@@ -300,16 +319,10 @@ public:
             return;
         }
         std::vector<std::string> commands = {fmt::format("{}", std::forward<Args>(args))...};
-
-        std::vector<const char *> res;
-        res.reserve(commands.size() + 1);
-        for (auto &i : commands) {
-            res.emplace_back(i.c_str());
-        }
-        res.emplace_back(nullptr);
-
-        mpvCommandAsync(mpv, 0, res.data());
+        _command_async(commands);
     }
+
+    void _command_async(const std::vector<std::string> &commands);
 
     // core states
     int64_t duration       = 0;  // second
@@ -328,8 +341,9 @@ public:
     int mpv_error_code     = 0;
     std::string hwCurrent;
     std::string filepath;
-    std::string currentShaderProfile;  // 当前着色器脚本名
-    std::string currentShader;         // 当前着色器脚本
+    std::string currentShaderProfile;                      // 当前着色器脚本名
+    std::string currentShader;                             // 当前着色器脚本
+    std::vector<std::vector<std::string>> currentSetting;  // 当前着色器脚本附加的mpv配置
 
     double video_brightness = 0;
     double video_contrast   = 0;
@@ -347,10 +361,10 @@ public:
     inline static bool TERMINAL = false;
 
     // 硬件解码
-    inline static bool HARDWARE_DEC               = false;
+    inline static bool HARDWARE_DEC = false;
 
     // 硬解方式
-#ifdef __SWITCH__
+#if defined(__SWITCH__) || defined(BOREALIS_USE_GXM)
     inline static std::string PLAYER_HWDEC_METHOD = "auto";
 #elif defined(__PSV__)
     inline static std::string PLAYER_HWDEC_METHOD = "vita-copy";
@@ -391,7 +405,11 @@ private:
 #ifdef MPV_SW_RENDER
     const int PIXCEL_SIZE          = 4;
     int nvg_image                  = 0;
+#if defined(__BYTE_ORDER__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
+    const char *sw_format          = "abgr";
+#else
     const char *sw_format          = "rgba";
+#endif
     int sw_size[2]                 = {1920, 1080};
     size_t pitch                   = PIXCEL_SIZE * sw_size[0];
     void *pixels                   = nullptr;
@@ -413,6 +431,23 @@ private:
     };
 #elif defined(BOREALIS_USE_D3D11)
     mpv_render_param mpv_params[1] = {
+        {MPV_RENDER_PARAM_INVALID, nullptr},
+    };
+#elif defined(BOREALIS_USE_GXM)
+    int nvg_image       = 0;
+    bool redraw         = false;
+    mpv_gxm_fbo mpv_fbo = {
+        .render_target = nullptr,
+        .color_surface = nullptr,
+        .depth_stencil_surface = nullptr,
+        .w = DISPLAY_WIDTH,
+        .h = DISPLAY_HEIGHT,
+        .format = SCE_GXM_TEXTURE_FORMAT_U8U8U8U8_RGBA,
+    };
+    int flip_y{1};
+    mpv_render_param mpv_params[3] = {
+        {MPV_RENDER_PARAM_FLIP_Y, &flip_y},
+        {MPV_RENDER_PARAM_GXM_FBO, &mpv_fbo},
         {MPV_RENDER_PARAM_INVALID, nullptr},
     };
 #elif defined(MPV_NO_FB)

@@ -4,12 +4,12 @@
 
 pkgname=ps4-openorbis-cpr
 pkgver=1.10.5
-pkgrel=1
+pkgrel=2
 pkgdesc='C++ Requests: Curl for People, a spiritual port of Python Requests.'
 arch=('any')
 url='https://github.com/libcpr/cpr'
 license=('MIT')
-options=(!strip libtool)
+options=(!strip !debug libtool)
 source=("https://github.com/libcpr/cpr/archive/refs/tags/${pkgver}.tar.gz" "cpr.patch")
 sha256sums=('SKIP' 'SKIP')
 depends=('ps4-openorbis-libcurl' 'ps4-openorbis-mbedtls')

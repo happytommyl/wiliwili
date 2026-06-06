@@ -93,7 +93,7 @@ void TextDataSourceDropdown::clearData() { this->data.clear(); }
 
 /// BaseDropdown
 
-BaseDropdown::BaseDropdown(const std::string& title, ValueSelectedEvent::Callback cb, int selected)
+BaseDropdown::BaseDropdown(const std::string& title, ValueSelectedEvent::Callback cb, size_t selected)
     : cb(std::move(cb)), selected(selected) {
     this->inflateFromXMLRes("xml/views/grid_dropdown.xml");
     this->title->setText(title);
@@ -142,7 +142,7 @@ size_t BaseDropdown::getSelected() const { return this->selected; }
 ValueSelectedEvent::Callback BaseDropdown::getSelectCallback() { return this->cb; }
 
 BaseDropdown* BaseDropdown::text(const std::string& title, const std::vector<std::string>& values,
-                                 ValueSelectedEvent::Callback cb, int selected, const std::string& hint) {
+                                 ValueSelectedEvent::Callback cb, size_t selected, const std::string& hint) {
     auto* dropdown = new BaseDropdown(title, std::move(cb), selected);
     dropdown->getRecyclingList()->registerCell("Cell", []() {
         auto* cell = new GridRadioCell();

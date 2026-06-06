@@ -160,6 +160,7 @@ void TVSearchActivity::onContentAvailable() {
                 this->updateInputLabel();
             },
             "wiliwili/search/tv/hint"_i18n, "", 32, getCurrentSearch(), 0);
+        inputLabel->getParent()->setCustomNavigationRoute(brls::FocusDirection::DOWN, searchLabel);
         return true;
     });
     inputLabel->getParent()->addGestureRecognizer(new brls::TapGestureRecognizer(this->inputLabel->getParent()));
@@ -183,6 +184,7 @@ void TVSearchActivity::onContentAvailable() {
     clearLabel->registerClickAction([this](...) {
         this->currentSearch.clear();
         this->updateInputLabel();
+        inputLabel->getParent()->setCustomNavigationRoute(brls::FocusDirection::DOWN, clearLabel);
         return true;
     });
     clearLabel->addGestureRecognizer(new brls::TapGestureRecognizer(clearLabel));
@@ -193,12 +195,14 @@ void TVSearchActivity::onContentAvailable() {
         }
         currentSearch.erase(currentSearch.size() - 1, 1);
         this->updateInputLabel();
+        inputLabel->getParent()->setCustomNavigationRoute(brls::FocusDirection::DOWN, deleteLabel);
         return true;
     });
     deleteLabel->addGestureRecognizer(new brls::TapGestureRecognizer(deleteLabel));
 
     searchLabel->registerClickAction([this](...) {
         this->search(getCurrentSearch());
+        inputLabel->getParent()->setCustomNavigationRoute(brls::FocusDirection::DOWN, searchLabel);
         return true;
     });
     searchLabel->addGestureRecognizer(new brls::TapGestureRecognizer(searchLabel));
@@ -214,6 +218,10 @@ void TVSearchActivity::onContentAvailable() {
     searchHots->setSearchCallback(&updateSearchEvent);
     searchHistory->setSearchCallback(&updateSearchEvent);
     searchHistory->requestHistory();
+
+    // 强制设置搜索历史的 TabBar 为输入栏
+    // 在清空历史时，会尝试将焦点切换到对应的 TabBar，这时在 TV 搜索页就能刚好将焦点切换到输入栏
+    searchHistory->setTabBar(reinterpret_cast<AutoSidebarItem*>(inputLabel.getView()->getParent()));
 }
 
 TVSearchActivity::~TVSearchActivity() { brls::Logger::debug("TVSearchActivity: delete"); }

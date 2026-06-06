@@ -33,7 +33,7 @@ typedef std::function<brls::View*(void)> TabViewCreator;
 
 enum class AutoTabBarPosition { TOP, LEFT, RIGHT };
 
-enum class AutoTabBarStyle { ACCENT, PLAIN, NONE };
+enum class AutoTabBarStyle { ACCENT, PLAIN, INLINE, NONE };
 
 class AutoSidebarItemGroup;
 class AttachedView;
@@ -141,6 +141,10 @@ public:
 
     void registerTabAction(std::string hintText, enum brls::ControllerButton button, brls::ActionListener action,
                            bool hidden = false, bool allowRepeating = false, enum brls::Sound sound = brls::SOUND_NONE);
+
+    void registerTabAction(const std::string& hintText, brls::ControllerButton button, brls::BrlsKeyCombination key,
+                           const brls::ActionListener& action, bool hidden = false, bool allowRepeating = false,
+                           brls::Sound sound = brls::SOUND_NONE);
 
 private:
     AutoSidebarItem* tab = nullptr;

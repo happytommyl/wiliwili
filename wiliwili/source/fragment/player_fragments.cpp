@@ -30,15 +30,9 @@ void PlayerTabCell::setBadge(std::string value, std::string color) {
         return;
     }
 
-    unsigned char r, g, b;
-    int result = sscanf(color.c_str(), "#%02hhx%02hhx%02hhx", &r, &g, &b);
-    if (result == 3) {
-        this->badge->setText(value);
-        this->badgeBox->setVisibility(brls::Visibility::VISIBLE);
-        this->badgeBox->setBackgroundColor(nvgRGB(r, g, b));
-    } else {
-        this->badgeBox->setVisibility(brls::Visibility::GONE);
-    }
+    this->badge->setText(value);
+    this->badgeBox->setVisibility(brls::Visibility::VISIBLE);
+    this->badgeBox->applyXMLAttribute("backgroundColor", color);
 }
 
 void PlayerTabCell::setBadge(std::string value, NVGcolor color, NVGcolor textColor) {

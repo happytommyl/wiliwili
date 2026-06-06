@@ -8,11 +8,14 @@
       "tab": "应用设置",
       "playback": {
         "header": "播放设置",
+        "player": "播放器",
         "report": "上传历史播放记录",
         "player_bar": "下方固定显示进度条",
         "low_quality": "低画质解码（以画质为代价换取更低的功耗）",
         "in_memory_cache": "解码缓存",
         "hwdec": "硬件解码",
+        "auto_play": "视频详情页直接播放",
+        "auto_fullscreen": "进入播放页后自动全屏",
         "exit_fullscreen": "播放结束时自动退出全屏",
         "play_strategy": "播放方式",
         "auto_play_next_part": "自动播放分集",
@@ -21,9 +24,13 @@
         "auto_no": "播完暂停视频",
         "auto_hint": "「自动播放推荐」 会在播完分集之后自动播放推荐视频",
         "sleep": "定时关闭",
+        "format": "格式",
         "video_codec": "视频编码",
         "audio_quality": "视频音质",
-        "video_format": "视频格式"
+        "video_format": "视频格式",
+        "dolby": "杜比全景声",
+        "hi_res": "Hi-Res 无损",
+        "window_fullscreen_on_app_fullscreen": "应用内全屏时自动切换窗口全屏"
       },
       "image": {
         "header": "图片设置",
@@ -38,13 +45,20 @@
       },
       "ui": {
         "header": "界面设置",
-        "tv_osd": "电视风格播放器"
+        "window": "窗口",
+        "bottom_bar": "底部提示栏",
+        "ui_style": "界面风格",
+        "tv_osd": "电视风格播放器",
+        "live_sidebar_count": "直播间侧边栏弹幕数量",
+        "live_sidebar_hide": "隐藏侧边栏"
       },
       "others": {
-        "header": "其他",
+        "header": "其他设置",
         "vibration": "手柄振动",
         "hide_bottom": "隐藏下方提示栏",
         "hide_fps": "隐藏 FPS",
+        "show_bottom": "显示提示栏",
+        "show_fps": "显示 FPS",
         "limited_fps": "最高帧数限制",
         "limited_fps_vsync": "垂直同步",
         "fullscreen": "全屏显示",
@@ -83,6 +97,7 @@
         "opencc": "自动转换简体中文 (需要重启)",
         "keymap": {
           "header": "键位图标 (需要重启)",
+          "swap": "键位交换 (需要重启)",
           "xbox": "Xbox",
           "ps": "PlayStation",
           "keyboard": "键盘"
@@ -112,7 +127,9 @@
         "dlna_waiting": "等待 DLNA 投屏中...",
         "dlna_quit": "确定要退出投屏?",
         "up2date": "应用已经是最新版",
+        "checking_update": "正在检查更新...",
         "release": "检查更新",
+        "config_dir": "配置目录",
         "config": "打开配置目录"
       }
     },
@@ -227,6 +244,10 @@
       "history_clear": "全部清除",
       "history_delete": "删除",
       "suggest": "猜你想搜"
+    },
+    "history": {
+      "clear": "清空历史记录",
+      "clear_hint": "确认清空历史记录？"
     },
     "order": {
       "all": "综合排序",
@@ -424,7 +445,11 @@
         "color": "彩色弹幕",
         "advanced": "高级弹幕",
         "level": "过滤等级",
-        "level_n": "{}级"
+        "level_n": "{}级",
+        "level_live": "直播过滤等级",
+        "level_live_none": "不过滤 (UL0+)",
+        "level_live_n": "UL{}以上",
+        "level_live_60": "仅UL60"
       },
       "style": {
         "header": "弹幕样式",

@@ -247,6 +247,34 @@ void RecyclingGrid::addCellAt(size_t index, bool downSide) {
     brls::Logger::verbose("Cell #{} - added", index);
 }
 
+void RecyclingGrid::removeCell(brls::View* view) {
+    if (!view) return;
+
+    // Find the index of the view
+    size_t index;
+    bool found = false;
+    auto& children = this->contentBox->getChildren();
+
+    for (size_t i = 0; i < children.size(); i++) {
+        View* child = children[i];
+
+        if (child == view) {
+            found = true;
+            index = i;
+            break;
+        }
+    }
+
+    if (!found) return;
+
+    // Remove it
+    children.erase(children.begin() + index);
+
+    view->willDisappear(true);
+
+    this->invalidate();
+}
+
 void RecyclingGrid::setDataSource(RecyclingGridDataSource* source) {
     if (this->dataSource) delete this->dataSource;
 
@@ -260,11 +288,12 @@ void RecyclingGrid::reloadData() {
     if (!layouted) return;
 
     // 将所有节点从屏幕上移除放入重复利用的列表中
-    auto children = this->contentBox->getChildren();
+    auto &children = this->contentBox->getChildren();
     for (auto const& child : children) {
         queueReusableCell((RecyclingGridItem*)child);
-        this->contentBox->removeView(child, false);
+        child->willDisappear(true);
     }
+    children.clear();
 
     visibleMin = UINT_MAX;
     visibleMax = 0;
@@ -391,8 +420,6 @@ void RecyclingGrid::itemsRecyclingLoop() {
     while (true) {
         RecyclingGridItem* minCell = nullptr;
         for (auto it : contentBox->getChildren())
-
-            // todo: contentBox 循环时加锁？it出现过空指针报错
             if (*((size_t*)it->getParentUserData()) == visibleMin) minCell = (RecyclingGridItem*)it;
 
         // 当第一个cell的顶部 与 组件顶部的距离大于 preFetchLine 行元素的距离时结束
@@ -408,7 +435,7 @@ void RecyclingGrid::itemsRecyclingLoop() {
         renderedFrame.size.height -= minCell->getIndex() % spanCount == 0 ? cellHeight + estimatedRowSpace : 0;
 
         queueReusableCell(minCell);
-        this->contentBox->removeView(minCell, false);
+        this->removeCell(minCell);
 
         brls::Logger::verbose("Cell #{} - destroyed", visibleMin);
 
@@ -418,7 +445,6 @@ void RecyclingGrid::itemsRecyclingLoop() {
     // 下方元素自动销毁
     while (true) {
         RecyclingGridItem* maxCell = nullptr;
-        // todo: contentBox 循环时加锁？it出现过空指针报错
         for (auto it : contentBox->getChildren())
             if (*((size_t*)it->getParentUserData()) == visibleMax) maxCell = (RecyclingGridItem*)it;
 
@@ -437,7 +463,7 @@ void RecyclingGrid::itemsRecyclingLoop() {
         renderedFrame.size.height -= maxCell->getIndex() % spanCount == 0 ? cellHeight + estimatedRowSpace : 0;
 
         queueReusableCell(maxCell);
-        this->contentBox->removeView(maxCell, false);
+        this->removeCell(maxCell);
 
         brls::Logger::verbose("Cell #{} - destroyed", visibleMax);
 

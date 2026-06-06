@@ -1,20 +1,26 @@
 pkgname=ffmpeg
-pkgver=7900d3684acc8e5e98fd39cbb12cb7ab73e6d4a5
-pkgrel=2
+pkgver=n6.0
+pkgrel=3
 url="https://ffmpeg.org/"
-source=("${pkgname}-${pkgver}.tar.gz::https://github.com/fish47/FFmpeg-vita/archive/${pkgver}.tar.gz")
-sha256sums=('SKIP')
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/FFmpeg/FFmpeg/archive/refs/tags/${pkgver}.tar.gz" "ffmpeg.patch")
+sha256sums=('SKIP' 'SKIP')
 depends=('mbedtls')
 
 prepare() {
-  cd FFmpeg-vita-$pkgver
+  cd FFmpeg-${pkgver}
+  patch --strip=1 --input=${srcdir}/ffmpeg.patch
 }
 
 build() {
-  cd FFmpeg-vita-$pkgver
+  cd FFmpeg-${pkgver}
   ./configure --prefix=$VITASDK/arm-vita-eabi \
         --enable-vita \
         --target-os=vita \
+        --enable-cross-compile \
+        --disable-runtime-cpudetect \
+        --disable-armv5te \
+        --cross-prefix=$VITASDK/bin/arm-vita-eabi- \
+        --extra-ldflags=" -L$VITASDK/lib " \
         --disable-shared \
         --enable-static \
         --disable-programs \
@@ -47,6 +53,6 @@ build() {
 }
 
 package () {
-  cd FFmpeg-vita-$pkgver
+  cd FFmpeg-${pkgver}
   make DESTDIR=$pkgdir install
 }

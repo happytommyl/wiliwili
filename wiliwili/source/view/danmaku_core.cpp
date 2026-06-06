@@ -328,7 +328,7 @@ void DanmakuCore::loadMaskData(const std::string &url) {
             BILI::get_webmask(
                 url, 16, 16 * maskData.length + 15,
                 [this](const std::string &text) {
-                    if (text.size() != 16 * maskData.length) {
+                    if (text.size() != (size_t)(16 * maskData.length)) {
                         brls::Logger::error("解析数据头2失败: {} != {}", text.size(), 16 * maskData.length);
                         return;
                     }
@@ -429,7 +429,7 @@ std::vector<DanmakuItem> DanmakuCore::getDanmakuData() {
 }
 
 void DanmakuCore::drawMask(NVGcontext *vg, float x, float y, float width, float height) {
-#if defined(BOREALIS_USE_OPENGL) || defined(BOREALIS_USE_D3D11)
+#ifdef DRAW_DANMAKU_MASK
     if (!DANMAKU_SMART_MASK || !maskData.isLoaded()) return;
     double playbackTime = MPVCore::instance().playback_time;
     /// 1. 先根据时间选择分片
@@ -458,13 +458,7 @@ void DanmakuCore::drawMask(NVGcontext *vg, float x, float y, float width, float 
     if (maskLastIndex != maskIndex) {
         maskLastIndex = maskIndex;
         // 生成新的纹理
-        auto &svg = slice.svgData[maskIndex];
-        // 给图片添加一圈边框（避免图片边沿为透明时自动扩展了透明色导致非视频区域无法显示弹幕）
-        // 注：返回的 svg 底部固定留有 2像素 透明，不是很清楚具体作用，这里选择绘制一个2像素宽的空心矩形来覆盖
-        const std::string border =
-            R"xml(<rect x="0" y="0" width="100%" height="100%" fill="none" stroke="#000" stroke-width="2"/></svg>)xml";
-        auto maskDocument =
-            lunasvg::Document::loadFromData(pystring::slice(svg.svg, 0, pystring::rindex(svg.svg, "</svg>")) + border);
+        auto maskDocument = lunasvg::Document::loadFromData(slice.svgData[maskIndex].svg);
         if (maskDocument == nullptr) return;
         auto bitmap = maskDocument->renderToBitmap(maskDocument->width(), maskDocument->height());
         maskWidth   = bitmap.width();
@@ -519,9 +513,13 @@ void DanmakuCore::drawMask(NVGcontext *vg, float x, float y, float width, float 
         }
     }
 
+    // 返回的 svg 底部固定留有1像素高度透明 (不是很清楚具体作用)
+    // 拉伸图片纹理1像素高度，绘制时舍弃掉这部分
+    float offsetY = drawHeight / maskHeight;
+
     /// 遮罩绘制
-    auto paint = nvgImagePattern(vg, drawX, drawY, drawWidth, drawHeight, 0, maskTex, 1.0f);
-    nvgRect(vg, x, y, width, height);
+    auto paint = nvgImagePattern(vg, drawX, drawY, drawWidth, drawHeight + offsetY, 0, maskTex, 1.0f);
+    nvgRect(vg, drawX, drawY, drawWidth, drawHeight);
     nvgFillPaint(vg, paint);
 #if defined(DEBUG_MASK)
     nvgFill(vg);
@@ -535,7 +533,8 @@ void DanmakuCore::drawMask(NVGcontext *vg, float x, float y, float width, float 
 }
 
 void DanmakuCore::clearMask(NVGcontext *vg, float x, float y, float width, float height) {
-#if !defined(DEBUG_MASK) && (defined(BOREALIS_USE_OPENGL) || defined(BOREALIS_USE_D3D11))
+#if !defined(DEBUG_MASK) && defined(DRAW_DANMAKU_MASK)
+    if (!DANMAKU_SMART_MASK || !maskData.isLoaded()) return;
     if (maskTex > 0) {
         nvgBeginPath(vg);
         nvgRect(vg, x, y, width, height);
@@ -572,7 +571,7 @@ void DanmakuCore::draw(NVGcontext *vg, float x, float y, float width, float heig
     }
 
     // 实际弹幕显示行数 （小于等于总行数且受弹幕显示区域限制）
-    int LINES = height / lineHeight * DANMAKU_STYLE_AREA * 0.01f;
+    size_t LINES = height / lineHeight * DANMAKU_STYLE_AREA * 0.01f;
     if (LINES > lineNum) LINES = lineNum;
 
     //取出需要的弹幕
@@ -750,7 +749,7 @@ void DanmakuCore::draw(NVGcontext *vg, float x, float y, float width, float heig
             }
             i.speed   = (width + i.length) / SECOND;
             i.showing = true;
-            for (int k = 0; k < LINES; k++) {
+            for (size_t k = 0; k < LINES; k++) {
                 if (i.type == 4) {
                     //底部
                     if (i.time < centerLines[LINES - k - 1]) continue;
@@ -810,14 +809,14 @@ void WebMask::parseHeader2(const std::string &text) {
 
     sliceList.reserve(length);
     uint64_t time, offset, currentOffset = 0;
-    for (size_t i = 0; i < length; i++) {
+    for (int32_t i = 0; i < length; i++) {
         std::memcpy(&time, text.data() + currentOffset, sizeof(uint64_t));
         std::memcpy(&offset, text.data() + currentOffset + 8, sizeof(uint64_t));
         time   = ntohll(time);
         offset = ntohll(offset);
         sliceList.emplace_back(time, offset, 0);
         if (i != 0) sliceList[i - 1].offsetEnd = offset;
-        if (i == length - 1) sliceList[i].offsetEnd = -1;
+        if (i == length - 1) sliceList[i].offsetEnd = SIZE_T_MAX;
         currentOffset += 16;
     }
 
@@ -868,7 +867,7 @@ const MaskSlice &WebMask::getSlice(size_t index) {
                 // 解压分片数据
                 std::string data;
                 try {
-                    if (slice.offsetEnd == -1) slice.offsetEnd = text.size() + offset;
+                    if (slice.offsetEnd == SIZE_T_MAX) slice.offsetEnd = text.size() + offset;
                     data = wiliwili::decompressGzipData(
                         text.substr(slice.offsetStart - offset, slice.offsetEnd - slice.offsetStart));
                 } catch (const std::runtime_error &e) {

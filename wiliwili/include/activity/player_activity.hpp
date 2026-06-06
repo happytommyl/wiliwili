@@ -82,7 +82,7 @@ public:
     virtual void reportCurrentProgress(size_t progress, size_t duration) = 0;
 
     // 获取当前视频的aid
-    virtual size_t getAid() = 0;
+    virtual uint64_t getAid() = 0;
 
     // 获取投屏链接
     virtual void requestCastUrl() = 0;
@@ -105,7 +105,7 @@ public:
     inline static bool PLAYER_SKIP_OPENING_CREDITS = true;
 
 protected:
-    BRLS_BIND(VideoView, video, "video/detail/video");
+    BRLS_BIND(VideoView, video, "video");
     BRLS_BIND(brls::AppletFrame, appletFrame, "video/detail/frame");
     BRLS_BIND(UserInfoView, videoUserInfo, "video_author");
     BRLS_BIND(brls::Box, videoTitleBox, "video/title/box");
@@ -137,6 +137,9 @@ protected:
 private:
     bool activityShown = false;
     std::chrono::system_clock::time_point videoDeadline{};
+
+    // 重新选择当前清晰度的播放链接播放
+    void updateVideoLink();
 };
 
 class PlayerActivity : public BasePlayerActivity {
@@ -158,7 +161,7 @@ public:
     void onRelatedVideoList(const bilibili::VideoDetailListResult& result) override;
     void onRedirectToEp(const std::string& url) override;
     void onCastPlayUrl(const bilibili::VideoUrlResult& result) override;
-    size_t getAid() override;
+    uint64_t getAid() override;
 
     void onContentAvailable() override;
 
@@ -204,7 +207,7 @@ public:
     // 正在播放的情况下切换到新的番剧
     void playSeason(uint64_t season_id);
 
-    size_t getAid() override;
+    uint64_t getAid() override;
 
 private:
     unsigned int pgc_id;

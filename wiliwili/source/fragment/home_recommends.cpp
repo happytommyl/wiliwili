@@ -9,8 +9,10 @@
 #include "view/recycling_grid.hpp"
 #include "view/video_card.hpp"
 #include "utils/number_helper.hpp"
+#include "utils/config_helper.hpp"
 #include "utils/activity_helper.hpp"
 #include "utils/image_helper.hpp"
+#include "utils/shortcut_helper.hpp"
 
 using namespace brls::literals;
 
@@ -19,20 +21,47 @@ using namespace brls::literals;
 class DataSourceRecommendVideoList : public RecyclingGridDataSource {
 public:
     explicit DataSourceRecommendVideoList(bilibili::RecommendVideoListResult result)
-        : recommendList(std::move(result)) {}
+        : recommendList(std::move(result)) {
+    }
+
     RecyclingGridItem* cellForRow(RecyclingGrid* recycler, size_t index) override {
         //从缓存列表中取出 或者 新生成一个表单项
         RecyclingGridItemVideoCard* item = (RecyclingGridItemVideoCard*)recycler->dequeueReusableCell("Cell");
 
         bilibili::RecommendVideoResult& r = this->recommendList[index];
-        item->setCard(r.pic + ImageHelper::h_ext, r.title, r.owner.name, r.pubdate, r.stat.view, r.stat.danmaku,
-                      r.duration, r.rcmd_reason.content);
+        if (r.business_info.is_ad) {
+            auto& card = r.business_info.archive;
+            auto& info = r.business_info;
+            auto& mark = r.business_info.business_mark;
+            if (r.business_info.is_ad_video) {
+                // 推广视频
+                item->setCard(card.pic + ImageHelper::h_ext, info.title, card.owner.name, card.pubdate, card.stat.view,
+                              card.stat.danmaku, card.duration);
+                item->setExtraInfo(mark.img_url, (float)mark.img_width * 0.375f, (float)mark.img_height * 0.375f);
+            } else {
+                // 广告网页
+                item->setCard(info.pic + ImageHelper::h_ext, info.title, info.adver_name, "", "", "", mark.text);
+            }
+        } else {
+            item->setCard(r.pic + ImageHelper::h_ext, r.title, r.owner.name, r.pubdate, r.stat.view, r.stat.danmaku,
+                          r.duration, r.rcmd_reason.content);
+        }
         return item;
     }
 
     size_t getItemCount() override { return recommendList.size(); }
 
-    void onItemSelected(RecyclingGrid* recycler, size_t index) override { Intent::openBV(recommendList[index].bvid); }
+    void onItemSelected(RecyclingGrid* recycler, size_t index) override {
+        if (recommendList[index].business_info.is_ad) {
+            if (recommendList[index].business_info.is_ad_video) {
+                Intent::openBV(recommendList[index].business_info.archive.bvid);
+            } else {
+                brls::Application::getPlatform()->openBrowser(recommendList[index].business_info.url);
+            }
+        } else {
+            Intent::openBV(recommendList[index].bvid);
+        }
+    }
 
     void appendData(const bilibili::RecommendVideoListResult& data) {
         //todo: 研究一下多线程条件下的问题
@@ -76,13 +105,28 @@ HomeRecommends::HomeRecommends() {
 
 void HomeRecommends::onCreate() {
     this->registerTabAction("wiliwili/home/common/refresh"_i18n, brls::ControllerButton::BUTTON_X,
+                            ShortcutHelper::getRefresh(),
                             [this](brls::View* view) -> bool {
                                 this->recyclingGrid->refresh();
                                 return true;
                             });
 }
 
-void HomeRecommends::onRecommendVideoList(const bilibili::RecommendVideoListResultWrapper& result) {
+void HomeRecommends::onRecommendVideoList(const bilibili::RecommendVideoListResultWrapper& originalResult) {
+    // 过滤up主
+    bilibili::RecommendVideoListResultWrapper result;
+    result.requestIndex = originalResult.requestIndex;
+    result.item.resize(originalResult.item.size());
+    if (ProgramConfig::instance().upFilter.empty()) {
+        std::copy(originalResult.item.begin(), originalResult.item.end(), result.item.begin());
+    } else {
+        auto it = std::copy_if(originalResult.item.begin(), originalResult.item.end(), result.item.begin(),
+                               [](const bilibili::RecommendVideoResult& r) {
+                                   return !ProgramConfig::instance().upFilter.count(r.owner.mid);
+                               });
+        result.item.resize(std::distance(result.item.begin(), it));
+    }
+
     brls::Threading::sync([this, result]() {
         auto* datasource = dynamic_cast<DataSourceRecommendVideoList*>(recyclingGrid->getDataSource());
         if (datasource && result.requestIndex != 1) {

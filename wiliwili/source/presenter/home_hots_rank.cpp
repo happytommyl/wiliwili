@@ -15,21 +15,21 @@ std::vector<std::string> HomeHotsRankRequest::getRankList() {
 
 void HomeHotsRankRequest::requestData(size_t index) {
     if (index >= rankList.size()) return;
-    auto item = rankList[index];
-    if (item.type) {
+    const auto &item = rankList[index];
+    if (item.type == RankType::PGC) {
         this->requestHotsRankPGCVideoList(item.id);
     } else {
         this->requestHotsRankVideoList(item.id, item.extra);
     }
 }
 
-void HomeHotsRankRequest::requestHotsRankVideoList(int rid, std::string type) {
+void HomeHotsRankRequest::requestHotsRankVideoList(const int rid, const std::string& type) {
     BILI::get_hots_rank(
         rid, type, [this](auto result, auto note) { this->onHotsRankList(result, note); },
         [this](BILI_ERR) { this->onError(error); });
 }
 
-void HomeHotsRankRequest::requestHotsRankPGCVideoList(int season_type, int day) {
+void HomeHotsRankRequest::requestHotsRankPGCVideoList(const int season_type, const int day) {
     BILI::get_hots_rank_pgc(
         season_type, day, [this](auto result, auto explain) { this->onHotsRankPGCList(result, explain); },
         [this](BILI_ERR) { this->onError(error); });

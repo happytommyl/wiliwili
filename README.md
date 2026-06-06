@@ -29,7 +29,7 @@
 ![Linux](https://img.shields.io/badge/-Linux-lightgrey?style=flat&logo=Linux&logoColor=white)
 [![fedora](https://img.shields.io/badge/fedora-copr-blue?logo=fedora)](https://copr.fedorainfracloud.org/coprs/mochaa/wiliwili/)
 [![Scoop Version (extras bucket)](https://img.shields.io/scoop/v/wiliwili?bucket=extras)](https://scoop.sh/#/apps?q=wiliwili)
-[![aur](https://img.shields.io/aur/version/wiliwili-git?color=blue&logo=archlinux)](https://aur.archlinux.org/packages/wiliwili-git/)
+[![aur](https://img.shields.io/aur/version/wiliwili?color=blue&logo=archlinux)](https://aur.archlinux.org/packages/wiliwili/)
 [![Flathub](https://img.shields.io/flathub/v/cn.xfangfang.wiliwili)](https://flathub.org/apps/cn.xfangfang.wiliwili)
 [![nightly.link](https://img.shields.io/badge/nightly.link-%E6%B5%8B%E8%AF%95%E7%89%88-green)](https://nightly.link/xfangfang/wiliwili/workflows/build.yaml/dev)
 [![layout](https://img.shields.io/badge/wiliwili-自定义布局-yellow)](https://github.com/xfangfang/wiliwili_theme)
@@ -78,13 +78,13 @@ hbmenu 自行选择路径。
 
 下载 `wiliwili-PSVita.vpk` 安装即可：[wiliwili releases](https://github.com/xfangfang/wiliwili/releases)
 
-目前只推荐观看 360P 分辨率使用，不过仍有相当大的提升空间，如果你愿意为此贡献欢迎开一个 PR 讨论了解更多。
+开启硬解后可以流畅播放 720P 横屏视频，480P 竖屏视频，部分直播 1080P 原画。
 
 ### PS4
 
 下载 `wiliwili-PS4.pkg` 安装即可：[wiliwili releases](https://github.com/xfangfang/wiliwili/releases)
 
-只支持软解，对于 ps4 推荐关闭设置中的低画质解码；ps4 pro 如果想勉强播放 4k@60 需要开启低画质解码。
+只支持软解，如果想播放 4k@60 需要在设置中开启低画质解码。
 
 ### PC
 
@@ -93,20 +93,8 @@ PC客户端支持切换硬件解码、秒开流畅适合老电脑、支持鼠标
 下载对应系统的安装包运行即可：[wiliwili releases](https://github.com/xfangfang/wiliwili/releases)
 
 > [!TIP]
-> 现在 Linux & Steam Deck 用户可以通过系统自带的软件商店（如Discover、GNOME Software）搜索 `wiliwili` 进行下载。
-
-<details>
-
-<br>
-注意：
-
-1. 显卡驱动需要支持 `OpenGL 3.2` 以运行此程序，OpenGL 2.0+, OpenGL ES 2.0+
-   设备需要自行编译，请参考 [项目 WIKI](https://github.com/xfangfang/wiliwili/wiki)
-2. Linux: 如有其他打包需求欢迎提交完善的打包脚本
-3. macOS: 欢迎 macOS 用户提交 Homebrew 安装方式到官方仓库
-4. 支持诸多包管理器，请参考 [项目 WIKI](https://github.com/xfangfang/wiliwili/wiki)
-
-</details>
+> 现在 Linux & Steam Deck 用户可以通过系统自带的软件商店（如Discover、GNOME Software）搜索 `wiliwili` 进行下载。  
+> 更多使用技巧请参考 [项目 WIKI](https://github.com/xfangfang/wiliwili/wiki)  
 
 <br>
 
@@ -183,9 +171,15 @@ PC客户端支持切换硬件解码、秒开流畅适合老电脑、支持鼠标
 
 ### 软件移植
 
-本应用基于 nanovg 绘制界面，nanovg 底层可移植切换到任意图形库，视频播放部分则使用 MPV + FFMPEG 通过 OpenGL 绘制。
-所以按照我的理解 wiliwili 应该可以移植到任何一个内存大于500MB，支持OpenGL（ES）的设备。如果你有想要移植的设备欢迎发一条
-issue 讨论。
+本应用基于 nanovg 绘制界面，nanovg 底层可移植切换到任意图形库，已有 OpenGL/Vulkan/Metal 等支持。   
+视频播放部分则使用 FFMPEG + MPV 绘制，默认使用 OpenGL，有 D3D11/Deko3d/Gxm 或软件渲染支持。  
+触摸/按键/输入法等平台相关功能通过 GLFW 或 SDL 来支持，也可以脱离二者直接实现，比如 Gxm 版 PSV。
+
+如果你要移植的设备支持 OpenGL(ES) 那么一般来说，直接编译就能正常运行。  
+如果你要移植的设备使用其他底层图形库，那么首先需要移植 nanovg，这可以确保应用主要界面正常，
+其次为了更好的性能表现需要 ffmpeg 的硬解和 mpv 的渲染支持。  
+
+如果你有想要移植的设备欢迎发一条 issue 讨论，Android / iOS 不在讨论之内。
 
 ### 新功能
 
@@ -198,7 +192,7 @@ issue 讨论。
 
 ### 代码分支
 
-主分支 yoga 为保证编译无误的最新代码  
+主分支 yoga 为最新版本的代码  
 开发分支 dev 为正在开发中的代码，任何新的 PR 都需要向 dev 分支提交
 
 <br>
@@ -235,7 +229,7 @@ make -C build wiliwili -j$(sysctl -n hw.ncpu)
 
 ```shell
 # Ubuntu: install dependencies
-sudo apt install libcurl4-openssl-dev libmpv-dev libwebp-dev
+sudo apt install libssl-dev libmpv-dev libwebp-dev
 
 cmake -B build -DPLATFORM_DESKTOP=ON
 make -C build wiliwili -j$(nproc)
@@ -262,15 +256,6 @@ cmake -B build -G "MinGW Makefiles" -DPLATFORM_DESKTOP=ON
 mingw32-make -C build wiliwili -j$(nproc)
 ```
 
-#### SDL2
-
-wiliwili 在 switch 和 PC 平台默认使用 GLFW, 由于 SDL2 支持的平台更多，考虑到向更多平台移植 (比如 PSV PS4 等)，所以
-wiliwili 也支持切换到 SDL2 环境构建。
-
-```shell
-cmake -B build -DPLATFORM_DESKTOP=ON -DUSE_SDL2=ON
-cmake --build build
-```
 
 </details>
 
@@ -285,7 +270,7 @@ cmake --build build
 #### Docker
 
 ```shell
-docker run --rm -v $(pwd):/data devkitpro/devkita64:20240202 \
+docker run --rm -v $(pwd):/data devkitpro/devkita64:20251117 \
   bash -c "/data/scripts/build_switch.sh"
 ```
 
@@ -298,13 +283,12 @@ docker run --rm -v $(pwd):/data devkitpro/devkita64:20240202 \
 sudo dkp-pacman -S switch-glfw switch-libwebp switch-cmake switch-curl devkitA64
 
 # 3. 安装自定义依赖
-# devkitpro提供的部分依赖版本过低, 提供的 ffmpeg 无法播放网络视频
+# devkitpro提供的提供的 ffmpeg/mpv 无法播放网络视频
 # 手动编译方法请参考：scripts/README.md
 base_url="https://github.com/xfangfang/wiliwili/releases/download/v0.1.0"
 sudo dkp-pacman -U \
-    $base_url/switch-libass-0.17.1-1-any.pkg.tar.zst \
-    $base_url/switch-ffmpeg-6.1-5-any.pkg.tar.zst \
-    $base_url/switch-libmpv-0.36.0-2-any.pkg.tar.zst
+    $base_url/switch-ffmpeg-7.1-1-any.pkg.tar.zst \
+    $base_url/switch-libmpv-0.36.0-3-any.pkg.tar.zst
 
 # 4. build
 cmake -B cmake-build-switch -DPLATFORM_SWITCH=ON
@@ -315,18 +299,26 @@ make -C cmake-build-switch wiliwili.nro -j$(nproc)
 
 ### 交叉编译 PSV 可执行文件
 
-使用本地环境来编译请参考 `.github/workflows/build.yaml` 。  
-额外参考：[borealis 示例](https://github.com/xfangfang/borealis#building-the-demo-for-psv)
-和 [wiliwili_vita 编译指南](https://gist.github.com/xfangfang/305da139721ad4e96d7a9d9a1a550a9d)
+使用本地环境来编译可以参考：
+ - [borealis 编译指南](https://github.com/xfangfang/borealis/wiki/PS-Vita)
+ - [wiliwili vita 编译指南](https://gist.github.com/xfangfang/305da139721ad4e96d7a9d9a1a550a9d)
+
+注意: 我们使用自定义的 mbedtls, curl 和 ffmpeg 作为依赖, 在使用本地环境编译时，请先卸载 vitasdk 中的相关库，再安装[指定的](https://github.com/xfangfang/wiliwili/tree/yoga/scripts/psv)依赖.
 
 <details>
-同样可以更方便地使用 docker 进行编译, 在 Apple Silicon 上编译，推荐使用 [OrbStack](https://orbstack.dev) 代替 Docker Desktop，因为前者支持 Rosetta 运行 x86_64 的
-Docker 镜像。
 
 ```shell
+# 构建 OpenGL ES 2.0 版
 docker run --rm -v $(pwd):/src/ xfangfang/wiliwili_psv_builder:latest \
     "cmake -B cmake-build-psv -G Ninja -DPLATFORM_PSV=ON \
         -DMPV_NO_FB=ON -DUSE_SYSTEM_CURL=ON -DUSE_SYSTEM_SDL2=ON \
+        -DCMAKE_BUILD_TYPE=Release && \
+        cmake --build cmake-build-psv"
+
+# 构建 Gxm 版 (推荐)
+docker run --rm -v $(pwd):/src/ xfangfang/wiliwili_psv_builder:latest-gxm \
+    "cmake -B cmake-build-psv -G Ninja -DPLATFORM_PSV=ON \
+        -DUSE_SYSTEM_CURL=ON -DUSE_GXM=ON -DUSE_VITA_SHARK=OFF \
         -DCMAKE_BUILD_TYPE=Release && \
         cmake --build cmake-build-psv"
 ```
@@ -335,14 +327,12 @@ docker run --rm -v $(pwd):/src/ xfangfang/wiliwili_psv_builder:latest \
 
 ### 交叉编译 PS4 可执行文件
 
-参考 `.github/workflows/build.yaml` 使用 docker 来编译。  
-或本地安装 [PacBrew](https://github.com/PacBrew/pacbrew-packages) 环境（只支持 x86_64
-Linux），并手动添加依赖库，请参考：[scripts/ps4/Dockerfile](https://github.com/xfangfang/wiliwili/blob/dev/scripts/ps4/Dockerfile)
+使用本地环境来编译可以参考: 
+ - [PacBrew 环境安装](https://github.com/PacBrew/pacbrew-packages)
+ - [borealis 编译指南](https://github.com/xfangfang/borealis/wiki/PS4)
+ - [编译 wiliwili 依赖的第三方库](https://github.com/xfangfang/wiliwili/blob/dev/scripts/ps4/Dockerfile)
 
 <details>
-
-在 Apple Silicon 上编译，推荐使用 [OrbStack](https://orbstack.dev) 代替 Docker Desktop，因为前者支持 Rosetta 运行 x86_64 的
-Docker 镜像。
 
 ```shell
 docker run --rm -v $(pwd):/src/ xfangfang/wiliwili_ps4_builder:latest \
@@ -353,6 +343,18 @@ docker run --rm -v $(pwd):/src/ xfangfang/wiliwili_ps4_builder:latest \
 ```
 
 </details>
+
+### GLFW or SDL
+
+wiliwili 使用 nanovg 绘制图形和文字，对于创建窗口、按键触摸、输入法等支持是通过 GLFW(默认) 或 SDL 完成的。
+
+因为 GLFW 支持平台有限，在移植到新平台时可以使用 SDL 或者自行实现上述对应接口。
+
+```shell
+# 示例
+cmake -B build -DPLATFORM_DESKTOP=ON -DUSE_SDL2=ON
+cmake --build build
+```
 
 <br>
 
@@ -365,7 +367,7 @@ docker run --rm -v $(pwd):/src/ xfangfang/wiliwili_ps4_builder:latest \
 
 # Acknowledgement
 
-The development of wiliwili cannot do without the support of the following open source projects.
+The development of wiliwili cannot do without the support of the following organization and open source projects.
 
 - Toolchain: devkitpro, switchbrew, vitasdk OpenOrbis and PacBrew
     - https://github.com/devkitPro
@@ -376,11 +378,13 @@ The development of wiliwili cannot do without the support of the following open 
 - UI Library: natinusala and XITRIX
     - https://github.com/natinusala/borealis
     - https://github.com/XITRIX/borealis
-- Video Player: Cpasjuste, proconsule fish47 and averne
+- Video Player: Cpasjuste, proconsule, fish47 and averne
     - https://github.com/Cpasjuste/pplay
     - https://github.com/proconsule/nxmp
     - https://github.com/fish47/FFmpeg-vita
-    - https://github.com/averne
+    - https://github.com/fish47/mpv-vita
+    - http://github.com/averne/FFmpeg
+    - http://github.com/averne/mpv
 - Misc
     - https://github.com/libcpr/cpr
     - https://github.com/nlohmann/json
@@ -391,11 +395,7 @@ The development of wiliwili cannot do without the support of the following open 
     - https://github.com/cesanta/mongoose
     - https://chromium.googlesource.com/webm/libwebp
     - https://github.com/fancycode/MemoryModule
-    - https://github.com/dacap/clip
 
 # Special thanks
 
 - Thanks to Crowdin for supporting [open-source projects](https://crowdin.com/page/open-source-project-setup-request).
-- Thanks to JetBrains for providing [Open Source development licenses](https://jb.gg/OpenSourceSupport).
-
-    <img style="width: 70px;" src="https://resources.jetbrains.com/storage/products/company/brand/logos/jb_beam.svg" alt="JetBrains Logo (Main) logo.">

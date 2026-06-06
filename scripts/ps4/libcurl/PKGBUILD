@@ -5,15 +5,15 @@
 
 pkgname=ps4-openorbis-libcurl
 pkgver=7.80.0
-pkgrel=4
+pkgrel=5
 pkgdesc='An URL retrieval utility and library'
 arch=('any')
 url='https://curl.haxx.se/'
 license=('curl')
 source=("https://curl.haxx.se/download/curl-${pkgver}.tar.xz")
 sha256sums=('SKIP')
-options=(!strip libtool staticlibs)
-depends=('ps4-openorbis-zlib' 'ps4-openorbis-mbedtls' 'ps4-openorbis-cares')
+options=(!strip !debug libtool staticlibs)
+depends=('ps4-openorbis-zlib' 'ps4-openorbis-mbedtls')
 makedepends=('ps4-openorbis-pkg-config' 'ps4-openorbis-vars')
 groups=('ps4-openorbis-portlibs')
 
@@ -27,7 +27,7 @@ build() {
   CFLAGS="${CFLAGS} -DSOL_IP=0" LIBS="${LIBS} -lSceNet" \
   ./configure --prefix="${OPENORBIS}/usr" --host=x86_64 \
     --disable-shared --enable-static --disable-unix-sockets \
-    --with-mbedtls --disable-manual --enable-ares
+    --with-mbedtls --disable-manual --with-ca-bundle="/system/common/cert/CA_LIST.cer"
 
   # TODO: fix this (use proper patch)...
   sed -i 's|#include <osreldate.h>|//#include <osreldate.h>|g' include/curl/curl.h

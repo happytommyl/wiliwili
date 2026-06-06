@@ -115,8 +115,8 @@ inline void from_json(const nlohmann::json& nlohmann_json_j, VideoCommentControl
 class VideoCommentResult {
 public:
     size_t ctime;
-    int64_t rpid, parent, root;
-    size_t oid;
+    uint64_t rpid, parent, root;
+    uint64_t oid;
     UserCommentResult member;
     VideoCommentContent content;
     std::vector<VideoCommentResult> replies;
@@ -475,10 +475,31 @@ public:
     float min_buffer_time;
     std::vector<DashMedia> video;
     std::vector<DashMedia> audio;
+
+    int dolby_type = 0; // 0: 无, 1: 普通杜比, 2: 全景声
+    std::vector<DashMedia> dolby_audio; // 可能为空
+    bool flac_display = false;
+    DashMedia flac_audio; // 若不存在则其url为空字符串
+    bool has_flac = false;
 };
 inline void from_json(const nlohmann::json& nlohmann_json_j, Dash& nlohmann_json_t) {
     if (nlohmann_json_j.contains("audio") && !nlohmann_json_j.at("audio").is_null()) {
         nlohmann_json_j.at("audio").get_to(nlohmann_json_t.audio);
+    }
+    // 解析杜比信息
+    if (nlohmann_json_j.contains("dolby") && nlohmann_json_j.at("dolby").is_object()) {
+        const auto& d = nlohmann_json_j.at("dolby");
+        if (d.contains("type") && !d.at("type").is_null()) d.at("type").get_to(nlohmann_json_t.dolby_type);
+        if (d.contains("audio") && d.at("audio").is_array()) d.at("audio").get_to(nlohmann_json_t.dolby_audio);
+    }
+    // 解析无损信息
+    if (nlohmann_json_j.contains("flac") && nlohmann_json_j.at("flac").is_object()) {
+        const auto& f = nlohmann_json_j.at("flac");
+        if (f.contains("display") && !f.at("display").is_null()) f.at("display").get_to(nlohmann_json_t.flac_display);
+        if (f.contains("audio") && f.at("audio").is_object()) {
+            f.at("audio").get_to(nlohmann_json_t.flac_audio);
+            nlohmann_json_t.has_flac = !nlohmann_json_t.flac_audio.base_url.empty();
+        }
     }
     NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(NLOHMANN_JSON_FROM, duration, video, min_buffer_time));
 }
@@ -530,6 +551,14 @@ inline void from_json(const nlohmann::json& nlohmann_json_j, VideoUrlResult& nlo
         NLOHMANN_JSON_PASTE(NLOHMANN_JSON_FROM, quality, timelength, accept_description, accept_quality));
 }
 
+class SeasonUrlResult {
+public:
+    VideoUrlResult video_info;
+};
+inline void from_json(const nlohmann::json& nlohmann_json_j, SeasonUrlResult& nlohmann_json_t) {
+    NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(NLOHMANN_JSON_FROM, video_info));
+}
+
 class SubtitleLine {
 public:
     float from, to;
@@ -568,6 +597,7 @@ public:
 };
 inline void from_json(const nlohmann::json& nlohmann_json_j, VideoPageSubtitle& nlohmann_json_t) {
     NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(NLOHMANN_JSON_FROM, id_str, lan, lan_doc, subtitle_url));
+    nlohmann_json_t.subtitle_url = parseLink(nlohmann_json_t.subtitle_url);
 }
 
 typedef std::vector<VideoPageSubtitle> VideoPageSubtitleList;
@@ -592,6 +622,7 @@ inline void from_json(const nlohmann::json& nlohmann_json_j, VideoPageResult& nl
     }
     if (nlohmann_json_j.contains("dm_mask") && nlohmann_json_j.at("dm_mask").is_object()) {
         nlohmann_json_j.at("dm_mask").at("mask_url").get_to(nlohmann_json_t.mask_url);
+        nlohmann_json_t.mask_url = parseLink(nlohmann_json_t.mask_url);
     }
     NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(NLOHMANN_JSON_FROM, online_count, last_play_time, last_play_cid));
 }
@@ -662,6 +693,25 @@ inline void from_json(const nlohmann::json& nlohmann_json_j, VideoHighlightProgr
     if (max == 0) return;
     for (auto& i : nlohmann_json_t.data) {
         i /= max;
+    }
+}
+
+/// 视频快照（进度条缩略图）
+class VideoSnapshotData {
+public:
+    int img_x_len  = 0;
+    int img_y_len  = 0;
+    int img_x_size = 0;
+    int img_y_size = 0;
+    std::vector<std::string> image;
+    std::vector<int> index;
+
+    bool isValid() const { return !image.empty() && img_x_len > 0 && img_y_len > 0 && img_x_size > 0 && img_y_size > 0; }
+};
+inline void from_json(const nlohmann::json& nlohmann_json_j, VideoSnapshotData& nlohmann_json_t) {
+    NLOHMANN_JSON_EXPAND(NLOHMANN_JSON_PASTE(NLOHMANN_JSON_FROM, img_x_len, img_y_len, img_x_size, img_y_size, image));
+    if (nlohmann_json_j.contains("index") && nlohmann_json_j.at("index").is_array()) {
+        nlohmann_json_j.at("index").get_to(nlohmann_json_t.index);
     }
 }
 

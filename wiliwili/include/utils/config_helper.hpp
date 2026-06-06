@@ -8,6 +8,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <unordered_set>
 #include <nlohmann/json.hpp>
 #include "analytics.h"
 #include "borealis/core/singleton.hpp"
@@ -35,8 +36,10 @@ enum class SettingItem {
     APP_LANG,       // 应用语言
     APP_RESOURCES,  // 自定义界面布局
     APP_UI_SCALE,   // 界面缩放
+    APP_SWAP_ABXY,  // A-B 交换 和 X-Y 交换
     SCROLL_SPEED,   // 列表滑动速度
     HISTORY_REPORT,
+    PLAYER_AUTO_PLAY, // 进入详情页自动播放
     PLAYER_STRATEGY,
     PLAYER_BOTTOM_BAR,
     PLAYER_HIGHLIGHT_BAR,
@@ -46,6 +49,7 @@ enum class SettingItem {
     PLAYER_HWDEC,
     PLAYER_HWDEC_CUSTOM,
     PLAYER_EXIT_FULLSCREEN_ON_END,
+    PLAYER_WINDOW_FULLSCREEN_ON_APP_FULLSCREEN, // 应用内全屏时同步切换窗口全屏
     PLAYER_DEFAULT_SPEED,
     PLAYER_VOLUME,
     PLAYER_ASPECT,
@@ -55,7 +59,10 @@ enum class SettingItem {
     PLAYER_HUE,
     PLAYER_GAMMA,
     PLAYER_OSD_TV_MODE,
+    PLAYER_OSD_HIDE,
     VIDEO_QUALITY,
+    VIDEO_QUALITY_LANDSCAPE_MAX,
+    VIDEO_QUALITY_PORTRAIT_MAX,
     TEXTURE_CACHE_NUM,
     OPENCC_ON,
     CUSTOM_UPDATE_API,
@@ -83,6 +90,7 @@ enum class SettingItem {
     HOME_WINDOW_STATE,
     SEARCH_TV_MODE,
     LIMITED_FPS,
+    SWAP_INTERVAL,
     DEACTIVATED_TIME,
     DEACTIVATED_FPS,
     DLNA_IP,
@@ -91,6 +99,33 @@ enum class SettingItem {
     HTTP_PROXY,
     HTTP_PROXY_STATUS,
     TLS_VERIFY,
+    HTTP_TIMEOUT,
+    HTTP_CONNECTION_TIMEOUT,
+    HTTP_DNS_CACHE_TIMEOUT,
+    UP_FILTER,
+    LIVE_DANMAKU_FILTER_LEVEL,
+    LIVE_SIDEBAR_DANMAKU_COUNT, // 直播间侧边栏弹幕数量上限
+    SHORTCUT_REFRESH, // 刷新快捷键
+    SHORTCUT_SEARCH, // 搜索快捷键
+    SHORTCUT_LAST, // 上一个Tab快捷键
+    SHORTCUT_NEXT, // 下一个Tab快捷键
+    SHORTCUT_LAST_SUB, // 上一个子Tab快捷键 (热门、追番、影视 三个页面的二级菜单)
+    SHORTCUT_NEXT_SUB, // 下一个子Tab快捷键
+    SHORTCUT_VOLUME_UP, // 音量增大快捷键
+    SHORTCUT_VOLUME_DOWN, // 音量减小快捷键
+    SHORTCUT_VIDEO_PROFILE, // 视频详情快捷键
+    SHORTCUT_DANMAKU, // 弹幕快捷键
+    SHORTCUT_PLAYLIST, // 播放列表快捷键
+    SHORTCUT_FORWARD, // 快进快捷键
+    SHORTCUT_REWIND, // 快退快捷键
+    SHORTCUT_SETTING, // 设置快捷键
+    SHORTCUT_VIDEO_QUALITY, // 视频清晰度菜单快捷键
+    SHORTCUT_VIDEO_SPEED, // 视频倍速菜单快捷键
+    SHORTCUT_VIDEO_SPEEDUP, // 视频倍速快捷键
+    SHORTCUT_VIDEO_OSD, // 切换OSD显示
+    SHORTCUT_VIDEO_PAUSE, // 视频播放暂停快捷键
+    PLAYER_AUTO_FULLSCREEN, // 进入播放页后自动全屏
+    CUSTOM_THEME_COLOR,  // 自定义主题色 (十六进制 #RRGGBB，例如 #FF6699)
 };
 
 class APPVersion : public brls::Singleton<APPVersion> {
@@ -161,7 +196,7 @@ public:
     ProgramConfig(const ProgramConfig& config);
     void setProgramConfig(const ProgramConfig& conf);
     void setCookie(const Cookie& data);
-    Cookie getCookie() const;
+    Cookie getCookie();
     void addHistory(const std::string& key);
     std::vector<std::string> getHistoryList();
     void setHistory(const std::vector<std::string>& list);
@@ -169,7 +204,7 @@ public:
     std::string getRefreshToken() const;
     std::string getCSRF();
     std::string getUserID();
-    std::string getBuvid3();
+    std::string getUuID();
     bool hasLoginInfo();
 
     // Google Analytics ID
@@ -251,13 +286,15 @@ public:
 
     void toggleFullscreen();
 
+    void setWindowFullscreen(bool value);
+
     /**
      * 检查是否需要置顶窗口
      */
     void checkOnTop();
 
     std::vector<CustomTheme> customThemes;
-    Cookie cookie = {{"DedeUserID", "0"}};
+    Cookie cookie = {};
     std::string refreshToken;
     nlohmann::json setting;
     std::string client;
@@ -266,6 +303,7 @@ public:
     SeasonCustomSetting seasonCustom;
     std::string httpProxy;
     std::string httpsProxy;
+    std::unordered_set<uint64_t> upFilter; // 此列表中的up主在推荐页面将不显示
 
     static std::unordered_map<SettingItem, ProgramOption> SETTING_MAP;
 };
@@ -296,4 +334,13 @@ public:
     static void initCustomView();
     static void initCustomTheme();
     static void initCustomStyle();
+
+    /// 返回用户自定义的主题色，格式为 "#RRGGBB"；未设置时返回空字符串。
+    static const std::string& getCustomThemeColorHex();
+
+    /// 判断颜色字符串是否为 Bilibili 官方默认大会员粉色 (#FB7299)。
+    static bool isBilibiliDefaultPink(const std::string& color);
+
+private:
+    static std::string customThemeColorHex;
 };

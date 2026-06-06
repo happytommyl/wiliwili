@@ -4,7 +4,9 @@
 #include <cpr/cpr.h>
 #include <nlohmann/json.hpp>
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 #include "bilibili.h"
+#include "bilibili/api.h"
 #include "bilibili/util/md5.hpp"
 #include "curl/curl.h"
 #include "bilibili/util/http.hpp"
@@ -36,7 +38,7 @@ void BilibiliClient::get_login_url_v2(const std::function<void(std::string, std:
 /// check if qrcode has been scanned
 void BilibiliClient::get_login_info(const std::string& oauthKey, const std::function<void(enum LoginInfo)>& callback,
                                     const ErrorCallback& error) {
-    HTTP::__cpr_post(
+    HTTP::_cpr_post(
         Api::QrLoginInfo, {}, {{"oauthKey", oauthKey}},
         [callback, error](const cpr::Response& r) {
             try {
@@ -68,30 +70,38 @@ void BilibiliClient::get_login_info(const std::string& oauthKey, const std::func
 void BilibiliClient::get_login_info_v2(const std::string& qrcodeKey, const std::string& deviceName,
                                        const std::string& deviceID, const std::function<void(enum LoginInfo)>& callback,
                                        const ErrorCallback& error) {
-    auto buvid3   = BilibiliClient::genRandomBuvid3();
+    auto uuid   = BilibiliClient::genRandomUuid();
+
     HTTP::COOKIES = {{{"appkey", BILIBILI_APP_KEY},
                       {"mobi_app", "pc_electron"},
                       {"device", "mac"},
                       {"innersign", "0"},
-                      {"buvid3", buvid3},
+                      {"buvid3", uuid},
                       {"device_id", deviceID},
                       {"device_name", deviceName}},
                      false};
+    // Manually set cookie, because cpr's cookie algorithm does not conform to the rfc6265
+    HTTP::HEADERS["cookie"] = HTTP::getEncodedCookie(HTTP::COOKIES);
 
-    HTTP::__cpr_get(
+    HTTP::_cpr_get(
         Api::QrLoginInfoV2, {{"qrcode_key", qrcodeKey}, {"source", "main_electron_pc"}},
-        [callback, error, buvid3](const cpr::Response& r) {
+        [callback, error, uuid](const cpr::Response& r) {
             try {
                 HTTP::COOKIES      = {false};
                 nlohmann::json res = nlohmann::json::parse(r.text);
                 auto data          = res.at("data").get<QrLoginInfoResultV2>();
                 if (data.status) {
                     std::map<std::string, std::string> cookies;
-                    cookies["buvid3"] = buvid3;
+                    cookies["_uuid"] = uuid;
+                    HTTP::COOKIES.emplace_back({"_uuid", cookies["_uuid"]});
+                    cookies["buvid3"] = BilibiliClient::genRandomBuvid3();
+                    HTTP::COOKIES.emplace_back({"buvid3", cookies["buvid3"]});
                     for (const auto& cookie : r.cookies) {
                         cookies[cookie.GetName()] = cookie.GetValue();
                         HTTP::COOKIES.emplace_back({cookie.GetName(), cookie.GetValue()});
                     }
+                    // Manually set cookie, because cpr's cookie algorithm does not conform to the rfc6265
+                    HTTP::HEADERS["cookie"] = HTTP::getEncodedCookie(HTTP::COOKIES);
                     if (BilibiliClient::writeCookiesCallback) {
                         BilibiliClient::writeCookiesCallback(cookies, data.refresh_token);
                     }
@@ -117,6 +127,13 @@ void BilibiliClient::get_my_info(const std::function<void(UserResult)>& callback
 void BilibiliClient::get_user_relation(const std::string& mid, const std::function<void(UserRelationStat)>& callback,
                                        const ErrorCallback& error) {
     HTTP::getResultAsync<UserRelationStat>(Api::UserRelationStat, {{"vmid", mid}}, callback, error);
+}
+
+/// 获取与某个用户的关系（是否关注等）
+void BilibiliClient::get_user_relation_detail(const std::string& mid,
+                                              const std::function<void(UserRelationDetail)>& callback,
+                                              const ErrorCallback& error) {
+    HTTP::getResultAsync<UserRelationDetail>(Api::UserRelation, {{"fid", mid}}, callback, error);
 }
 
 /// 获取用户动态的数量
@@ -287,7 +304,7 @@ void BilibiliClient::get_collection_list_all(uint64_t rid, int type, const std::
         error);
 }
 
-void BilibiliClient::get_collection_video_list(int64_t id, int index, int num, int type,
+void BilibiliClient::get_collection_video_list(uint64_t id, int index, int num, int type,
                                                const std::function<void(CollectionVideoListResultWrapper)>& callback,
                                                const ErrorCallback& error) {
     HTTP::getResultAsync<CollectionVideoListResultWrapper>(

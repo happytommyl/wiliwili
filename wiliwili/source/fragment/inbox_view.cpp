@@ -9,6 +9,7 @@
 #include "view/user_info.hpp"
 #include "utils/image_helper.hpp"
 #include "utils/number_helper.hpp"
+#include "utils/shortcut_helper.hpp"
 
 using namespace brls::literals;
 
@@ -71,6 +72,7 @@ public:
             recycler->refresh();
         });
         recycler->present(view);
+        view->setWidth(600);
     }
 
     void appendData(const bilibili::InboxChatListResult& data) {}
@@ -116,6 +118,12 @@ InboxView::InboxView() {
         },
         true);
 
+    this->registerAction(ShortcutHelper::getLast(),
+                         [this](brls::View* view) -> bool {
+                             tabFrame->focus2LastTab();
+                             return true;
+                         });
+
     this->registerAction(
         "下一项", brls::ControllerButton::BUTTON_RT,
         [this](brls::View* view) -> bool {
@@ -131,6 +139,12 @@ InboxView::InboxView() {
         },
         true);
 
+    this->registerAction(ShortcutHelper::getNext(),
+                         [this](brls::View* view) -> bool {
+                             tabFrame->focus2NextTab();
+                             return true;
+                         });
+
     recyclingGrid->registerCell("Cell", []() { return new ChatUserCard(); });
     recyclingGrid->setRefreshAction([this]() {
         brls::Application::giveFocus(tabFrame->getSidebar());
@@ -138,6 +152,10 @@ InboxView::InboxView() {
         this->requestData(true);
     });
     recyclingGrid->registerAction("wiliwili/home/common/refresh"_i18n, brls::BUTTON_X, [this](brls::View* view) {
+        this->recyclingGrid->refresh();
+        return true;
+    });
+    recyclingGrid->registerAction(ShortcutHelper::getRefresh(), [this](brls::View* view) {
         this->recyclingGrid->refresh();
         return true;
     });

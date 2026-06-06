@@ -8,26 +8,28 @@ namespace bilibili {
 
 namespace Api {
 
-const std::string _apiBase     = "https://api.bilibili.com";
-const std::string _appBase     = "https://app.bilibili.com";
-const std::string _vcBase      = "https://api.vc.bilibili.com";
-const std::string _bvcBase     = "https://bvc.bilivideo.com";
-const std::string _liveBase    = "https://api.live.bilibili.com";
-const std::string _passBase    = "https://passport.bilibili.com";
-const std::string _bangumiBase = "https://bangumi.bilibili.com";
-const std::string _grpcBase    = "https://grpc.biliapi.net";
+const std::string _apiBase     = "//api.bilibili.com";
+const std::string _appBase     = "//app.bilibili.com";
+const std::string _vcBase      = "//api.vc.bilibili.com";
+const std::string _bvcBase     = "//bvc.bilivideo.com";
+const std::string _liveBase    = "//api.live.bilibili.com";
+const std::string _passBase    = "//passport.bilibili.com";
+const std::string _bangumiBase = "//bangumi.bilibili.com";
+const std::string _grpcBase    = "//grpc.biliapi.net";
 
 /// ===
 /// 视频API
 /// ===
 
+/// Wbi 签名获取地址
+const std::string Nav = _apiBase + "/x/web-interface/nav";
 /// 视频详情. gRPC
 const std::string DetailGRPC = _grpcBase + "/bilibili.app.view.v1.View/View";
 /// 视频详情.
 const std::string Detail    = _apiBase + "/x/web-interface/view";
 const std::string DetailAll = _apiBase + "/x/web-interface/view/detail";
 /// 视频分P详情
-const std::string PageDetail = _apiBase + "/x/player/v2";
+const std::string PageDetail = _apiBase + "/x/player/wbi/v2";
 /// 番剧详情.
 const std::string SeasonDetail = _apiBase + "/pgc/view/pc/season";
 /// 番剧推荐.
@@ -36,14 +38,16 @@ const std::string SeasonRCMD = _apiBase + "/pgc/season/web/related/recommend";
 const std::string SeasonStatus = _apiBase + "/pgc/view/web/season/user/status";
 /// 在线观看人数.
 const std::string OnlineViewerCount = _apiBase + "/x/player/online/total";
-/// 视频播放信息.
-const std::string PlayInformation = _apiBase + "/x/player/playurl";
+/// 视频播放地址
+const std::string PlayUrl = _apiBase + "/x/player/playurl";
+const std::string PlayUrl2 = _apiBase + "/x/player/wbi/playurl";
 /// 视频播放地址 TV.
 const std::string PlayUrlTV = _apiBase + "/x/tv/card/view_v2";
 /// 视频播放地址 投屏
 const std::string PlayUrlCast = _apiBase + "/x/tv/playurl";
 /// 番剧播放地址
 const std::string SeasonUrl = _apiBase + "/pgc/player/web/playurl";
+const std::string SeasonUrl2 = _apiBase + "/pgc/player/web/v2/playurl";
 /// 视频分P列表.
 const std::string PlayPageList = _apiBase + "/x/player/pagelist";
 /// 视频播放信息.
@@ -73,6 +77,8 @@ const std::string Triple    = _appBase + "/x/v2/view/like/triple";
 const std::string TripleWeb = _apiBase + "x/web-interface/archive/like/triple";
 /// 关注 取关
 const std::string Follow = _apiBase + "/x/relation/modify";
+/// 查询单个用户关系（是否关注等）
+const std::string UserRelation = _apiBase + "/x/relation";
 /// 番剧 追剧/取消追剧
 const std::string FollowSeason     = _apiBase + "/pgc/app/follow/add";
 const std::string UndoFollowSeason = _apiBase + "/pgc/app/follow/del";
@@ -92,8 +98,12 @@ const std::string VideoEpisodeRelation = _apiBase + "/pgc/season/episode/web/inf
 const std::string VideoDanmaku = _apiBase + "/x/v1/dm/list.so";
 /// 获取高能进度条
 const std::string VideoHighlight = _bvcBase + "/pbp/data";
+/// 获取视频快照（缩略图）
+const std::string VideoSnapshot = _apiBase + "/x/player/videoshot";
 /// 获取直播弹幕token
 const std::string LiveDanmakuInfo = _liveBase + "/xlive/web-room/v1/index/getDanmuInfo";
+/// 获取历史弹幕
+const std::string LiveHistoryDanmaku = _liveBase + "/xlive/web-room/v1/dM/gethistory";
 /// 直播API
 const std::string LiveUrl = _liveBase + "/room/v1/Room/playUrl";
 /// 直播API V2
@@ -111,7 +121,7 @@ const std::string LiveAreaList = _liveBase + "/xlive/app-interface/v2/index/getA
 /// ===
 
 /// 主页 推荐
-const std::string Recommend = _apiBase + "/x/web-interface/index/top/feed/rcmd";
+const std::string Recommend = _apiBase + "/x/web-interface/wbi/index/top/feed/rcmd";
 /// 主页 热门 热门综合
 const std::string HotsAll = _apiBase + "/x/web-interface/popular";
 /// 主页 热门 每周推荐列表
@@ -142,6 +152,8 @@ const std::string Comment = _apiBase + "/x/v2/reply/main";
 const std::string CommentDetail = _apiBase + "/x/v2/reply/detail";
 /// 点赞评论
 const std::string CommentLike = _apiBase + "/x/v2/reply/action";
+/// 点踩评论
+const std::string CommentDisLike = _apiBase + "/x/v2/reply/hate";
 /// 发布评论
 const std::string CommentAdd = _apiBase + "/x/v2/reply/add";
 /// 删除评论
@@ -190,7 +202,7 @@ const std::string WatchLater = _apiBase + "/x/v2/history/toview/web";
 /// ===
 /// 搜索页API
 /// ===
-const std::string Search     = _apiBase + "/x/web-interface/search/type";
+const std::string Search     = _apiBase + "/x/web-interface/wbi/search/type";
 const std::string TVSuggest  = _apiBase + "/x/tv/suggest";
 const std::string SearchHots = _apiBase + "/x/web-interface/search/square";
 

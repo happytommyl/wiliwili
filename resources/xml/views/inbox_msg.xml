@@ -1,5 +1,6 @@
 <brls:Box
         focusable="false"
+        hideClickAnimation="true"
         axis="column">
 
         <brls:Label
@@ -61,12 +62,12 @@
                         visibility="gone"
                         axis="column"
                         grow="1"
-                        padding="5">
+                        padding="12">
 
                         <brls:Image
                                 id="msg/share/thumb"
                                 height="200"
-                                cornerRadius="4"
+                                cornerRadius="8"
                                 image="@res/pictures/video-card-bg.png"
                                 scalingType="fill" />
 

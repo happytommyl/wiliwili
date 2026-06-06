@@ -16,6 +16,7 @@
 #include "utils/dialog_helper.hpp"
 #include "utils/number_helper.hpp"
 #include "presenter/comment_related.hpp"
+#include "utils/shortcut_helper.hpp"
 #include "view/qr_image.hpp"
 #include "view/video_view.hpp"
 #include "view/grid_dropdown.hpp"
@@ -87,7 +88,7 @@ public:
         container->setInFadeAnimation(true);
         brls::Application::pushActivity(new brls::Activity(container));
 
-        view->likeStateEvent.subscribe([this, item, index](bool value) {
+        view->likeStateEvent.subscribe([this, item, index](size_t value) {
             auto& itemData  = dataList[index - 2];
             itemData.action = value;
             item->setLiked(value);
@@ -214,6 +215,12 @@ void BasePlayerActivity::setCommonData() {
                                       return true;
                                   });
 
+    recyclingGrid->registerAction(ShortcutHelper::getRefresh(),
+                                  [this](brls::View* view) -> bool {
+                                      this->setCommentMode();
+                                      return true;
+                                  });
+
     // 切换右侧Tab
     this->registerAction(
         "上一项", brls::ControllerButton::BUTTON_LT,
@@ -245,18 +252,26 @@ void BasePlayerActivity::setCommonData() {
         },
         true);
 
+    this->registerAction(
+        ShortcutHelper::getLast(),
+        [this](brls::View* view) -> bool {
+            tabFrame->focus2LastTab();
+            return true;
+        });
+    this->registerAction(
+        ShortcutHelper::getNext(),
+        [this](brls::View* view) -> bool {
+            tabFrame->focus2NextTab();
+            return true;
+        });
+    video->registerCommonActions(this);
+
     // 调整清晰度
     this->registerAction("wiliwili/player/quality"_i18n, brls::ControllerButton::BUTTON_START,
                          [this](brls::View* view) -> bool {
                              this->setVideoQuality();
                              return true;
                          });
-
-    // 暂停
-    this->registerAction("toggle", brls::ControllerButton::BUTTON_SPACE, [this](...) -> bool {
-        this->video->togglePlay();
-        return true;
-    }, true);
 
     this->btnQR->getParent()->addGestureRecognizer(new brls::TapGestureRecognizer(this->btnQR->getParent()));
 
@@ -322,12 +337,13 @@ void BasePlayerActivity::setCommonData() {
                     }
 
                     // 播放到一半没网时也会触发EOF，这里简单判断一下结束播放时的播放条位置是否在片尾或视频结尾附近
-                    if (fabs(duration - progress) > 5 && !(clipEnd > 0 && clipEnd - progress < 5)) {
+                    if ((duration - progress > 5 || progress - duration > 5) && !(clipEnd > 0 && clipEnd - progress < 5)) {
                         brls::Logger::error("EOF: video: {} duration: {} clipEnd: {}", progress, duration, clipEnd);
                         return;
                     }
                     if (PLAYER_STRATEGY == PlayerStrategy::LOOP) {
                         MPVCore::instance().seek(0);
+                        MPVCore::instance().resume();
                         return;
                     }
                     auto stack    = brls::Application::getActivitiesStack();
@@ -345,6 +361,9 @@ void BasePlayerActivity::setCommonData() {
                     }
                 }
                 break;
+            case MpvEventEnum::RESTART:
+                this->updateVideoLink();
+                break;
             default:
                 break;
         }
@@ -353,6 +372,22 @@ void BasePlayerActivity::setCommonData() {
     customEventSubscribeID = APP_E->subscribe([this](const std::string& event, void* data) {
         if (event == VideoView::QUALITY_CHANGE) {
             this->setVideoQuality();
+        } else if (event == VideoView::SWITCH_TO_LAST) {
+            // 历史播放进度储存在 SubtitleCore 中
+            auto videoPage = SubtitleCore::instance().getSubtitleList();
+            if (videoPage.last_play_cid == videoDetailPage.cid) {
+                // 因为占用了切换弹幕的按键，所以在无效的情况下保持切换弹幕
+                this->video->toggleDanmaku();
+                return;
+            }
+            brls::Logger::debug("切换到历史播放进度：{}/{}", videoPage.last_play_cid, videoPage.last_play_time);
+            for (auto& p : videoDetailResult.pages) {
+                if (p.cid == videoPage.last_play_cid) {
+                    this->onIndexChange(p.page - 1);
+                    this->setProgress(videoPage.last_play_time / 1000);
+                    break;
+                }
+            }
         } else if (event == "REQUEST_CAST_URL") {
             this->requestCastUrl();
         }
@@ -405,6 +440,26 @@ void BasePlayerActivity::showCoinDialog(uint64_t aid) {
     dialog->open();
 }
 
+void BasePlayerActivity::updateVideoLink() {
+    // 设置视频加载后跳转的时间
+    setProgress(MPVCore::instance().video_progress);
+
+    // dash
+    if (!this->videoUrlResult.dash.video.empty()) {
+        // dash格式的视频无需重复请求视频链接，这里简单的设置清晰度即可
+        videoUrlResult.quality = BasePlayerActivity::defaultQuality;
+        this->onVideoPlayUrl(videoUrlResult);
+        return;
+    }
+
+    // flv
+    if (dynamic_cast<PlayerSeasonActivity*>(this)) {
+        this->requestSeasonVideoUrl(episodeResult.bvid, episodeResult.cid);
+    } else {
+        this->requestVideoUrl(videoDetailResult.bvid, videoDetailPage.cid);
+    }
+}
+
 void BasePlayerActivity::setVideoQuality() {
     if (this->videoUrlResult.accept_description.empty()) return;
 
@@ -412,6 +467,11 @@ void BasePlayerActivity::setVideoQuality() {
         "wiliwili/player/quality"_i18n,
         [this](int selected) {
             int code                           = this->videoUrlResult.accept_quality[selected];
+#ifdef __PSV__
+            if (code > 64) {
+                code = 64;
+            }
+#endif
             BasePlayerActivity::defaultQuality = code;
             ProgramConfig::instance().setSettingItem(SettingItem::VIDEO_QUALITY, code);
 
@@ -421,24 +481,7 @@ void BasePlayerActivity::setVideoQuality() {
                 return;
             }
 
-            // 设置视频加载后跳转的时间
-            setProgress(MPVCore::instance().video_progress);
-
-            // dash
-            if (!this->videoUrlResult.dash.video.empty()) {
-                // dash格式的视频无需重复请求视频链接，这里简单的设置清晰度即可
-                videoUrlResult.quality = BasePlayerActivity::defaultQuality;
-                this->onVideoPlayUrl(videoUrlResult);
-                return;
-            }
-
-            // flv
-            auto self = dynamic_cast<PlayerSeasonActivity*>(this);
-            if (self) {
-                this->requestSeasonVideoUrl(episodeResult.bvid, episodeResult.cid);
-            } else {
-                this->requestVideoUrl(videoDetailResult.bvid, videoDetailPage.cid);
-            }
+            this->updateVideoLink();
         },
         getQualityIndex());
     auto* recycler = dropdown->getRecyclingList();
@@ -451,6 +494,10 @@ void BasePlayerActivity::setVideoQuality() {
             return true;
         },
         true);
+    dropdown->registerAction(ShortcutHelper::getVideoQuality(), [dropdown](...) {
+        dropdown->dismiss();
+        return true;
+    });
 
     // 因为触摸的问题 视频组件上开启新的 activity 需要同步执行
     // 不然在某些情况下焦点会错乱
@@ -470,6 +517,18 @@ void BasePlayerActivity::setCommentMode() {
 
 void BasePlayerActivity::onVideoPlayUrl(const bilibili::VideoUrlResult& result) {
     brls::Logger::debug("onVideoPlayUrl quality: {}", result.quality);
+
+    if (result.accept_quality.empty() || result.accept_description.empty()) {
+        // 通常是返回了其他报错信息, 比如验证码
+        brls::Logger::error("onVideoPlayUrl: no video url available");
+        auto dialog = new brls::Dialog("Error: No video url available");
+        dialog->setCancelable(false);
+        dialog->addButton("hints/ok"_i18n, []() {
+            brls::sync([]() { brls::Application::popActivity(); });
+        });
+        dialog->open();
+        return;
+    }
 
     // 有效期 110 分钟
     videoDeadline = std::chrono::system_clock::now() + std::chrono::seconds(6600);
@@ -540,7 +599,15 @@ void BasePlayerActivity::onVideoPlayUrl(const bilibili::VideoUrlResult& result) 
 
         // 找到当前可用的清晰度
         for (const auto& i : result.dash.video) {
-            if (result.quality >= i.id) {
+            int desiredQuality = result.quality;
+            // 若设置了过高的清晰度, 自动切换到合适的清晰度, 默认为 128 (即无限制)
+            if (i.height > i.width) {
+                desiredQuality = std::min(desiredQuality, portraitQualityMax);
+            } else {
+                desiredQuality = std::min(desiredQuality, landscapeQualityMax);
+            }
+
+            if (desiredQuality >= i.id) {
                 videoUrlResult.quality = i.id;
                 break;
             }
@@ -566,12 +633,49 @@ void BasePlayerActivity::onVideoPlayUrl(const bilibili::VideoUrlResult& result) 
         // 将主音频和备份音频链接合并，当作不同的音轨传给播放器，可以实现在播放失败时自动切换
         std::vector<std::string> audios;
         if (!result.dash.audio.empty()) {
-            // 匹配当前设定的音频码率
-            bilibili::DashMedia a = result.dash.audio[0];  // High
-            for (auto& i : result.dash.audio) {
-                if (BILI::AUDIO_QUALITY == i.id) {
-                    a = i;
-                    break;
+            // 选择音轨，支持杜比/无损优先和多级回退
+            auto pickDolby = [&]() -> std::optional<bilibili::DashMedia> {
+                if (result.dash.dolby_audio.empty()) return std::nullopt;
+                bilibili::DashMedia best = result.dash.dolby_audio[0];
+                for (auto& dm : result.dash.dolby_audio) if (dm.bandwidth > best.bandwidth) best = dm;
+                return best;
+            };
+            auto pickFlac = [&]() -> std::optional<bilibili::DashMedia> {
+                if (!result.dash.has_flac) return std::nullopt;
+                return result.dash.flac_audio;
+            };
+            auto pickStandard = [&](int qid) -> std::optional<bilibili::DashMedia> {
+                for (auto& i : result.dash.audio) if (i.id == qid) return i;
+                return std::nullopt;
+            };
+            auto pickFirstAvailableStandard = [&]() -> std::optional<bilibili::DashMedia> {
+                int candidates[] = {30280, 30232, 30216};
+                for (int q : candidates) {
+                    auto m = pickStandard(q);
+                    if (m) return m;
+                }
+                // fallback to first item if none matched
+                if (!result.dash.audio.empty()) return result.dash.audio[0];
+                return std::nullopt;
+            };
+
+            bilibili::DashMedia a = result.dash.audio[0];
+            bool selected = false;
+            if (BILI::AUDIO_QUALITY == 30250) {
+                // Dolby → Lossless → High → Medium → Low
+                if (auto m = pickDolby()) { a = *m; selected = true; brls::Logger::debug("Picked Dolby audio (type {}), bw {}", result.dash.dolby_type, a.bandwidth);} else
+                if (auto m = pickFlac()) { a = *m; selected = true; brls::Logger::debug("Picked FLAC audio, bw {}", a.bandwidth);} else
+                if (auto m = pickFirstAvailableStandard()) { a = *m; selected = true; }
+            } else if (BILI::AUDIO_QUALITY == 30251) {
+                // Lossless → Dolby → High → Medium → Low
+                if (auto m = pickFlac()) { a = *m; selected = true; brls::Logger::debug("Picked FLAC audio, bw {}", a.bandwidth);} else
+                if (auto m = pickDolby()) { a = *m; selected = true; brls::Logger::debug("Picked Dolby audio (type {}), bw {}", result.dash.dolby_type, a.bandwidth);} else
+                if (auto m = pickFirstAvailableStandard()) { a = *m; selected = true; }
+            } else {
+                // Try user-selected standard, then fallback High→Medium→Low
+                if (auto m = pickStandard(BILI::AUDIO_QUALITY)) { a = *m; selected = true; }
+                if (!selected) {
+                    if (auto m = pickFirstAvailableStandard()) { a = *m; selected = true; }
                 }
             }
             // 生成音频列表
@@ -621,6 +725,12 @@ void BasePlayerActivity::onVideoPlayUrl(const bilibili::VideoUrlResult& result) 
     APP_E->fire(VideoView::REAL_DURATION, (void*)&time_sec);
 
     brls::Logger::debug("BasePlayerActivity::onVideoPlayUrl done");
+
+    // 根据配置决定是否自动全屏
+    if (ProgramConfig::instance().getBoolOption(SettingItem::PLAYER_AUTO_FULLSCREEN) &&
+        !this->video->isFullscreen()) {
+        this->video->setFullScreen(true);
+    }
 }
 
 void BasePlayerActivity::onCommentInfo(const bilibili::VideoCommentResultWrapper& result) {

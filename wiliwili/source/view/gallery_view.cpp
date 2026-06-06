@@ -2,6 +2,7 @@
 // Created by fang on 2022/8/21.
 //
 
+#include <cmath>
 #include <borealis/core/touch/tap_gesture.hpp>
 #include <borealis/core/application.hpp>
 #include <borealis/views/image.hpp>
@@ -53,7 +54,7 @@ GalleryView::GalleryView() {
             if (status.state != brls::GestureState::END) return;
             float width = getWidth();
             float x     = getX();
-            if (isnan(width) || isnan(x)) return;
+            if (std::isnan(width) || std::isnan(x)) return;
             if (status.position.x < x + width * 0.25) {
                 this->prev();
             } else if (status.position.x > x + width * 0.75) {

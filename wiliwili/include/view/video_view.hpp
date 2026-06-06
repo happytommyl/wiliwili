@@ -95,9 +95,15 @@ public:
 
     void toggleOSDLock();
 
+    void toggleVideoProfile();
+
     void toggleDanmaku();
 
     void toggleOSD();
+
+    static void showSpeedList();
+
+    void showPlayerSetting() const;
 
     void showLoading();
 
@@ -231,6 +237,8 @@ public:
 
     void buttonProcessing();
 
+    void registerCommonActions(brls::Activity* activity);
+
     // 用于 VideoView 可以接收的自定义事件
     inline static const std::string QUALITY_CHANGE = "QUALITY_CHANGE";
     inline static const std::string SET_ONLINE_NUM = "SET_ONLINE_NUM";
@@ -238,6 +246,7 @@ public:
     inline static const std::string SET_QUALITY    = "SET_QUALITY";
     inline static const std::string HINT           = "HINT";
     inline static const std::string LAST_TIME      = "LAST_TIME";
+    inline static const std::string SWITCH_TO_LAST = "SWITCH_TO_LAST";
     inline static const std::string REPLAY         = "REPLAY";
     inline static const std::string CLIP_INFO      = "CLIP_INFO";
     inline static const std::string HIGHLIGHT_INFO = "HIGHLIGHT_INFO";
@@ -251,11 +260,19 @@ public:
     // 当自动跳转下一集时不退出全屏
     inline static bool EXIT_FULLSCREEN_ON_END = true;
 
+    // 应用内全屏时同步切换窗口全屏 (仅 PC)
+    inline static bool WINDOW_FULLSCREEN_ON_APP_FULLSCREEN = false;
+
+    // 记录是否因应用内全屏而触发了窗口全屏，用于退出时还原
+    inline static bool WINDOW_FULLSCREEN_TRIGGERED = false;
+
     // Bottom progress bar
     inline static bool BOTTOM_BAR = true;
 
     // Highlight progress bar
     inline static bool HIGHLIGHT_PROGRESS_BAR = false;
+
+    inline static int OSD_SHOW_TIME = 5000;
 
 private:
     bool allowFullscreen  = true;
@@ -330,18 +347,21 @@ private:
     BRLS_BIND(SVGImage, osdLockIcon, "video/osd/lock/icon");
 
     // OSD
-    time_t osdLastShowTime     = 0;
-    const time_t OSD_SHOW_TIME = 5;  //默认显示五秒
+    brls::Time osdLastShowTime = 0;
     OSDState osd_state         = OSDState::HIDDEN;
     bool is_osd_shown          = false;
     bool is_osd_lock           = false;
     bool hide_lock_button      = false;
+    bool is_focus_on_osd       = false;
     // 区别于视频的时长，当 real_duration 大于 0 时，播放器进度条的总时长以此为准而不是以视频的实际时长为准
     // 用于正确显示预览视频的进度条，比如付费电影的预览
     int real_duration          = 0;
-    time_t hintLastShowTime    = 0;
+    brls::Time hintLastShowTime    = 0;
     int64_t lastPlayedPosition = POSITION_UNDEFINED;
     VideoHighlightData highlightData;  // 在播放器进度条上显示的标记点（用来展示片头片尾标记）
+
+    // 缩略图预览的显示状态
+    bool showThumbnailPreview  = false;  // 是否显示缩略图预览
 
     MPVCore* mpvCore;
     brls::Rect oldRect = brls::Rect(-1, -1, -1, -1);

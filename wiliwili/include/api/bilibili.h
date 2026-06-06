@@ -4,7 +4,6 @@
 #include <map>
 #include <vector>
 #include <future>
-#include "bilibili/api.h"
 
 namespace bilibili {
 
@@ -48,7 +47,9 @@ class VideoOnlineTotal;         // 某个视频在线人数，30s刷新一次
 class VideoRelation;            // 某个视频点赞收藏情况
 class VideoEpisodeRelation;     // 番剧的某一集的点赞收藏情况
 class VideoUrlResult;           // 视频播放地址
+class SeasonUrlResult;          // 番剧播放地址
 class VideoHighlightProgress;   // 视频高能进度条
+class VideoSnapshotData;        // 视频快照（缩略图）
 class VideoDetailPage;
 typedef std::vector<VideoDetailPage> VideoDetailPageListResult;  // 视频分P列表 （视频详情API可以直接获取分P列表）
 class VideoPageResult;                                           // 视频分P详情 （主要用来获取cc字幕）
@@ -59,6 +60,7 @@ class VideoCommentAddResult;                                     // 发布评论
 class VideoDetailResult;                                         // 视频详情
 class VideoDetailAllResult;  // 更详细的视频详情，包括 分P、合集、推荐、评论
 class UserRelationStat;      // 用户关注/粉丝/黑名单 数量
+class UserRelationDetail;    // 与某用户的关系详情（是否关注等）
 class UserDynamicCount;      // 用户动态的数量
 class UnixTimeResult;
 class CollectionListResultWrapper;        // 用户收藏列表
@@ -129,6 +131,11 @@ public:
     static void get_user_relation(const std::string& mid,
                                   const std::function<void(UserRelationStat)>& callback = nullptr,
                                   const ErrorCallback& error                            = nullptr);
+
+    /// 获取与某个用户的关系（是否关注等）
+    static void get_user_relation_detail(const std::string& mid,
+                                         const std::function<void(UserRelationDetail)>& callback = nullptr,
+                                         const ErrorCallback& error                               = nullptr);
 
     /// 获取用户动态的数量
     static void get_user_dynamic_count(const std::string& mid,
@@ -211,7 +218,7 @@ public:
      * @param error
      */
     static void get_collection_video_list(
-        int64_t id, int index = 1, int num = 20, int type = 1,
+        uint64_t id, int index = 1, int num = 20, int type = 1,
         const std::function<void(CollectionVideoListResultWrapper)>& callback = nullptr,
         const ErrorCallback& error                                            = nullptr);
 
@@ -305,7 +312,7 @@ public:
                               const ErrorCallback& error                          = nullptr);
 
     /// get season video url by cid
-    static void get_season_url(uint64_t cid, int qn = 64, const std::function<void(VideoUrlResult)>& callback = nullptr,
+    static void get_season_url(uint64_t cid, int qn = 64, const std::function<void(SeasonUrlResult)>& callback = nullptr,
                                const ErrorCallback& error = nullptr);
 
     /// get live video url by roomid
@@ -420,15 +427,21 @@ public:
                             const ErrorCallback& error                                     = nullptr);
 
     /// 获取单条评论详情
-    static void get_comment_detail(const std::string& access_key, const std::string& oid, int64_t rpid, size_t next = 0,
+    static void get_comment_detail(const std::string& access_key, const std::string& oid, uint64_t rpid, size_t next = 0,
                                    int type                                                      = 1,
                                    const std::function<void(VideoSingleCommentDetail)>& callback = nullptr,
                                    const ErrorCallback& error                                    = nullptr);
 
     /// 点赞评论
-    static void be_agree_comment(const std::string& access_key, const std::string& oid, int64_t rpid, bool is_like,
+    static void be_agree_comment(const std::string& access_key, const std::string& oid, uint64_t rpid, bool is_like,
                                  int type = 1, const std::function<void()>& callback = nullptr,
                                  const ErrorCallback& error = nullptr);
+
+    /// 点踩评论
+    static void be_disagree_comment(const std::string& access_key, const std::string& oid, uint64_t rpid, bool is_dislike,
+                                 int type = 1, const std::function<void()>& callback = nullptr,
+                                 const ErrorCallback& error = nullptr);
+
     /// 点赞动态
     static void be_agree_dynamic(const std::string& access_key, const std::string& id, bool is_like,
                                  const std::function<void()>& callback = nullptr, const ErrorCallback& error = nullptr);
@@ -444,12 +457,12 @@ public:
      * @param error
      */
     static void add_comment(const std::string& access_key, const std::string& message, const std::string& oid,
-                            int64_t parent = 0, int64_t root = 0, int type = 1,
+                            uint64_t parent = 0, uint64_t root = 0, int type = 1,
                             const std::function<void(VideoCommentAddResult)>& callback = nullptr,
                             const ErrorCallback& error                                 = nullptr);
 
     /// 删除评论
-    static void delete_comment(const std::string& access_key, const std::string& oid, int64_t rpid, int type = 1,
+    static void delete_comment(const std::string& access_key, const std::string& oid, uint64_t rpid, int type = 1,
                                const std::function<void()>& callback = nullptr, const ErrorCallback& error = nullptr);
 
     /// 视频页 获取单个视频播放人数
@@ -480,6 +493,11 @@ public:
     static void get_highlight_progress(uint64_t cid,
                                        const std::function<void(VideoHighlightProgress)>& callback = nullptr,
                                        const ErrorCallback& error                                  = nullptr);
+
+    /// 视频页 获取快照（缩略图）
+    static void get_video_snapshot(const std::string& bvid, uint64_t cid,
+                                   const std::function<void(VideoSnapshotData)>& callback = nullptr,
+                                   const ErrorCallback& error                             = nullptr);
 
     /// 视频页 上报历史记录
     static void report_history(const std::string& mid, const std::string& access_key, uint64_t aid,
@@ -597,14 +615,20 @@ public:
                               const ErrorCallback& error                          = nullptr);
 
     /// 初始化设置Cookie
-    static void init(Cookies& cookies, std::function<void(Cookies, std::string)> writeCookiesCallback,
-                     int timeout = 10000, const std::string& httpProxy = "", const std::string& httpsProxy = "",
-                     bool tlsVerify = true);
+    static void init(Cookies& cookies, std::function<void(Cookies, std::string)> writeCookiesCallback);
 
     static void setProxy(const std::string& httpProxy = "", const std::string& httpsProxy = "");
 
     static void setTlsVerify(bool value);
 
+    static void setHttpTimeout(int ms);
+
+    static void setConnectionTimeout(int ms);
+
+    static void setDnsCacheTimeout(int ms);
+
     static std::string genRandomBuvid3();
+
+    static std::string genRandomUuid();
 };
 }  // namespace bilibili

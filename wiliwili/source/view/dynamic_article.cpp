@@ -18,6 +18,8 @@
 #include "fragment/player_single_comment.hpp"
 #include "utils/dialog_helper.hpp"
 #include "utils/activity_helper.hpp"
+#include "utils/shortcut_helper.hpp"
+#include "utils/config_helper.hpp"
 
 using namespace brls::literals;
 
@@ -76,19 +78,9 @@ public:
     }
 
     void setGalleryData(const bilibili::DynamicArticleModuleDraw* imageData) {
-#ifdef __PSV__
-        const std::string note_raw_ext = "@300h.jpg";
-#else
-        const std::string note_raw_ext = "@!web-comment-note.jpg";
-#endif
         this->svgGallery->setVisibility(brls::Visibility::VISIBLE);
         for (auto& i : imageData->items) {
-            std::string raw_ext = ImageHelper::note_raw_ext;
-            if (i.src.size() > 4 && i.src.substr(i.src.size() - 4, 4) == ".gif") {
-                // gif 图片暂时按照 jpg 来解析
-                raw_ext = note_raw_ext;
-            }
-            this->images.emplace_back(i.src + raw_ext);
+            this->images.emplace_back(ImageHelper::parseGifImageUrl(i.src, ImageHelper::note_raw_ext));
         }
     }
 
@@ -229,7 +221,7 @@ private:
 class DataSourceDynamicDetailList : public RecyclingGridDataSource, public CommentAction, public DynamicAction {
 public:
     DataSourceDynamicDetailList(const bilibili::DynamicArticleResult& data, bilibili::DynamicArticleModuleState state,
-                                brls::Event<bool>* likeState, brls::Event<size_t>* likeNum, int mode,
+                                brls::Event<size_t>* likeState, brls::Event<size_t>* likeNum, int mode,
                                 std::function<void(void)> cb)
         : data(data),
           state(std::move(state)),
@@ -340,7 +332,7 @@ public:
         container->setInFadeAnimation(true);
         brls::Application::pushActivity(new brls::Activity(container));
 
-        view->likeStateEvent.subscribe([this, item, index](bool value) {
+        view->likeStateEvent.subscribe([this, item, index](size_t value) {
             auto& itemData  = dataList[index - 3];
             itemData.action = value;
             item->setLiked(value);
@@ -382,7 +374,7 @@ public:
 private:
     const bilibili::DynamicArticleResult& data;  // 动态原始数据
     bilibili::DynamicArticleModuleState state;  // 动态赞评转数据，为方便修改，不使用 data 内的数据
-    brls::Event<bool>* likeState;
+    brls::Event<size_t>* likeState;
     brls::Event<size_t>* likeNum;
     bilibili::VideoCommentListResult dataList;
     int commentMode                              = 3;  // 2: 按时间；3: 按热度
@@ -404,6 +396,10 @@ void DynamicArticleDetail::initList(const bilibili::DynamicArticleResult& result
                                             this->toggleCommentMode();
                                             return true;
                                         });
+    this->recyclingGrid->registerAction(ShortcutHelper::getRefresh(), [this](...) {
+        this->toggleCommentMode();
+        return true;
+    });
     this->recyclingGrid->setDataSource(new DataSourceDynamicDetailList(data, state, &likeStateEvent, &likeNumEvent,
                                                                        this->getVideoCommentMode(),
                                                                        [this]() { this->toggleCommentMode(); }));
@@ -510,7 +506,13 @@ void DynamicArticleView::setCard(const bilibili::DynamicArticleResult& result) {
                 if (data->user.vip.nickname_color.empty()) {
                     this->author->setMainTextColor(brls::Application::getTheme().getColor("brls/text"));
                 } else {
-                    this->author->getLabelName()->applyXMLAttribute("textColor", data->user.vip.nickname_color);
+                    const std::string& nc = data->user.vip.nickname_color;
+                    const std::string& customColor = Register::getCustomThemeColorHex();
+                    if (!customColor.empty() && Register::isBilibiliDefaultPink(nc)) {
+                        this->author->getLabelName()->applyXMLAttribute("textColor", customColor);
+                    } else {
+                        this->author->getLabelName()->applyXMLAttribute("textColor", nc);
+                    }
                 }
                 break;
             }
@@ -659,7 +661,13 @@ void DynamicArticleView::setForwardCard(const bilibili::dynamic_forward::Dynamic
                 if (data->user.vip.nickname_color.empty()) {
                     this->authorForward->setTextColor(brls::Application::getTheme().getColor("color/link"));
                 } else {
-                    this->authorForward->applyXMLAttribute("textColor", data->user.vip.nickname_color);
+                    const std::string& nc = data->user.vip.nickname_color;
+                    const std::string& customColor = Register::getCustomThemeColorHex();
+                    if (!customColor.empty() && Register::isBilibiliDefaultPink(nc)) {
+                        this->authorForward->applyXMLAttribute("textColor", customColor);
+                    } else {
+                        this->authorForward->applyXMLAttribute("textColor", nc);
+                    }
                 }
                 break;
             }
@@ -764,7 +772,7 @@ void DynamicArticleView::openDetail() {
         this->state.like.count = num;
     });
 
-    detail->likeStateEvent.subscribe([this](bool value) {
+    detail->likeStateEvent.subscribe([this](size_t value) {
         this->setLiked(value);
         this->state.like.like_state = value;
     });

@@ -383,8 +383,8 @@
 
     <VideoProfile
             id="video/profile"
-            positionTop="22"
-            positionLeft="22"
+            positionTop="12"
+            positionLeft="12"
             positionType="absolute"
             visibility="invisible"/>
 
